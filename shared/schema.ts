@@ -275,6 +275,36 @@ export type InsertSlaRule = z.infer<typeof insertSlaRuleSchema>;
 export type InsertCustomField = z.infer<typeof insertCustomFieldSchema>;
 export type InsertCustomFieldValue = z.infer<typeof insertCustomFieldValueSchema>;
 
+// System roles table for managing custom roles
+export const systemRoles = pgTable("system_roles", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  color: text("color").default("bg-gray-100 text-gray-800"),
+  isSystem: boolean("is_system").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// System permissions table
+export const systemPermissions = pgTable("system_permissions", {
+  id: varchar("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category").notNull(),
+  subcategory: text("subcategory"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Role permissions junction table
+export const rolePermissions = pgTable("role_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").references(() => systemRoles.id).notNull(),
+  permissionId: varchar("permission_id").references(() => systemPermissions.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Pause reasons table
 export const pauseReasons = pgTable("pause_reasons", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

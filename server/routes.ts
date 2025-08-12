@@ -28,6 +28,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Registrar rotas de permissões
   app.use("/api/permissions", permissionRoutes);
   
+  // Registrar rotas de roles no endpoint correto
+  app.use("/api", permissionRoutes);
+  
   // Team Performance endpoint (real data)
   app.get("/api/dashboard/team-performance", async (req, res) => {
     try {

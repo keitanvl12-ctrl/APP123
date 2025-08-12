@@ -69,12 +69,12 @@ export default function RoleManagement() {
   // Mutation para criar função
   const createRoleMutation = useMutation({
     mutationFn: async (data: { name: string; description?: string; permissions: string[] }) =>
-      apiRequest('/api/permissions/roles', {
+      apiRequest('/api/roles', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/permissions/roles'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/roles'] });
       setIsCreateDialogOpen(false);
       resetForm();
       toast({
@@ -94,12 +94,12 @@ export default function RoleManagement() {
   // Mutation para atualizar função
   const updateRoleMutation = useMutation({
     mutationFn: async (data: { id: string; name: string; description?: string; permissions: string[] }) =>
-      apiRequest(`/api/permissions/roles/${data.id}`, {
+      apiRequest(`/api/roles/${data.id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/permissions/roles'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/roles'] });
       setEditingRole(null);
       resetForm();
       toast({

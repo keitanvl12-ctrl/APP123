@@ -99,24 +99,48 @@ router.post('/roles', async (req, res) => {
   try {
     const data = createRoleSchema.parse(req.body);
     
-    // Create new role with hardcoded ID for demo
-    const newRole = {
-      id: `custom-${Date.now()}`,
+    console.log('📝 Creating new role:', data);
+    
+    // Generate a proper ID for the role
+    const roleId = data.name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+    
+    console.log('🆔 Generated role ID:', roleId);
+    console.log('🔍 Role ID type:', typeof roleId);
+    console.log('🔍 Role ID length:', roleId.length);
+    
+    const rolePayload = {
+      id: roleId,
       name: data.name,
       description: data.description || '',
-      color: 'bg-gray-100 text-gray-800',
+      color: 'bg-blue-100 text-blue-800',
+      isSystem: false
+    };
+    
+    console.log('🎯 Role payload being sent:', JSON.stringify(rolePayload, null, 2));
+    
+    // Create new role in database using storage method
+    const newRole = await storage.createSystemRole(rolePayload);
+    
+    // Add permissions to the role
+    if (data.permissions && data.permissions.length > 0) {
+      await storage.assignPermissionsToRole(newRole.id, data.permissions);
+      console.log(`✅ Assigned ${data.permissions.length} permissions to role ${newRole.id}`);
+    }
+    
+    // Return role with permission count
+    const roleWithCount = {
+      ...newRole,
       permissions: data.permissions.length,
-      isSystem: false,
       userCount: 0
     };
-
-    // For now, just return the created role (in real app, save to database)
-    res.status(201).json(newRole);
+    
+    console.log('✅ Role created successfully:', roleWithCount);
+    res.status(201).json(roleWithCount);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ message: 'Dados inválidos', errors: error.errors });
     }
-    console.error('Erro ao criar função:', error);
+    console.error('❌ Erro ao criar função:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });

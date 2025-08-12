@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { users, tickets, comments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues } from "@shared/schema";
-import { eq, desc, count, sql, and, gte, lte, or, isNull, ne } from "drizzle-orm";
+import { users, tickets, comments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues, systemRoles, systemPermissions, rolePermissions } from "@shared/schema";
+import { eq, desc, count, sql, and, gte, lte, or, isNull, ne, inArray } from "drizzle-orm";
 import {
   type User,
   type InsertUser,
@@ -2436,6 +2436,133 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Pause Management methods
+  // System Roles Management
+  async createSystemRole(roleData: { id: string; name: string; description?: string; color?: string; isSystem?: boolean }): Promise<any> {
+    try {
+      console.log('💾 Creating system role:', roleData.name);
+      
+      // Ensure ID is valid
+      if (!roleData.id || roleData.id.trim() === '') {
+        throw new Error('ID é obrigatório para criar função do sistema');
+      }
+      
+      // Make sure ID is properly set
+      const finalRoleData = {
+        id: roleData.id.trim(),
+        name: roleData.name,
+        description: roleData.description || '',
+        color: roleData.color || 'bg-gray-100 text-gray-800',
+        isSystem: roleData.isSystem || false
+      };
+      
+      // Simplified logging
+      
+      // Use direct pool execution to bypass Drizzle entirely
+      const { pool } = await import("./db");
+      
+      const result = await pool.query(`
+        INSERT INTO system_roles (id, name, description, color, is_system, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+        RETURNING *
+      `, [finalRoleData.id, finalRoleData.name, finalRoleData.description, finalRoleData.color, finalRoleData.isSystem]);
+      
+      const newRole = result.rows[0];
+        
+      console.log('✅ System role created:', newRole);
+      return newRole;
+    } catch (error) {
+      console.error('❌ Error creating system role:', error);
+      throw error;
+    }
+  }
+
+  async assignPermissionsToRole(roleId: string, permissionCodes: string[]): Promise<void> {
+    try {
+      console.log(`🔗 Assigning ${permissionCodes.length} permissions to role ${roleId}`);
+      
+      // First get permission IDs from codes using individual queries
+      const { pool } = await import("./db");
+      const permissions = [];
+      
+      for (const code of permissionCodes) {
+        const result = await pool.query(`
+          SELECT id, code FROM system_permissions WHERE code = $1
+        `, [code]);
+        
+        if (result.rows.length > 0) {
+          permissions.push(result.rows[0]);
+        }
+      }
+      
+      // Found permissions logging simplified
+      
+      // Remove existing permissions using pool to avoid Drizzle issues
+      await pool.query(`DELETE FROM role_permissions WHERE role_id = $1`, [roleId]);
+      
+      // Then add new permissions using pool
+      if (permissions.length > 0) {
+        for (const perm of permissions) {
+          await pool.query(`
+            INSERT INTO role_permissions (role_id, permission_id)
+            VALUES ($1, $2)
+          `, [roleId, perm.id]);
+        }
+      }
+      
+      console.log('✅ Permissions assigned successfully');
+    } catch (error) {
+      console.error('❌ Error assigning permissions:', error);
+      throw error;
+    }
+  }
+
+  async getAllRoles(): Promise<any[]> {
+    try {
+      console.log('🔍 Getting all system roles');
+      
+      const roles = await db
+        .select({
+          id: systemRoles.id,
+          name: systemRoles.name,
+          description: systemRoles.description,
+          color: systemRoles.color,
+          isSystem: systemRoles.isSystem,
+          createdAt: systemRoles.createdAt,
+          updatedAt: systemRoles.updatedAt
+        })
+        .from(systemRoles)
+        .orderBy(systemRoles.name);
+      
+      // Get permission count for each role
+      const rolesWithCounts = await Promise.all(
+        roles.map(async (role) => {
+          const permissionCount = await db
+            .select({ count: count() })
+            .from(rolePermissions)
+            .where(eq(rolePermissions.roleId, role.id));
+          
+          // Get user count for this role
+          const userCount = await db
+            .select({ count: count() })
+            .from(users)
+            .where(eq(users.role, role.id));
+          
+          return {
+            ...role,
+            permissions: permissionCount[0]?.count || 0,
+            userCount: userCount[0]?.count || 0
+          };
+        })
+      );
+      
+      console.log(`✅ Found ${rolesWithCounts.length} system roles`);
+      return rolesWithCounts;
+    } catch (error) {
+      console.error('❌ Error getting system roles:', error);
+      throw error;
+    }
+  }
+
   async getTicketPauseRecords(ticketId: string): Promise<any[]> {
     try {
       console.log(`🔍 Getting pause records for ticket: ${ticketId}`);
@@ -2679,32 +2806,7 @@ export class DatabaseStorage implements IStorage {
     return permissions.map(p => p.permission);
   }
 
-  async createSystemRole(data: { name: string; description?: string; permissions?: string[] }): Promise<SystemRole> {
-    const [role] = await db.insert(systemRoles).values({
-      name: data.name,
-      description: data.description,
-      isSystemRole: false,
-      userCount: 0
-    }).returning();
-
-    // Associar permissões se fornecidas
-    if (data.permissions && data.permissions.length > 0) {
-      const permissionRecords = await db.select()
-        .from(systemPermissions)
-        .where(sql`${systemPermissions.code} = ANY(${data.permissions})`);
-
-      if (permissionRecords.length > 0) {
-        await db.insert(rolePermissions).values(
-          permissionRecords.map(p => ({
-            roleId: role.id,
-            permissionId: p.id
-          }))
-        );
-      }
-    }
-
-    return role;
-  }
+  // Método duplicado removido - usando o método na linha 2440
 
   async updateSystemRole(id: string, data: { name?: string; description?: string; permissions?: string[] }): Promise<SystemRole> {
     // Atualizar dados da função
