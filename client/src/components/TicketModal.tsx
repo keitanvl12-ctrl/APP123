@@ -93,9 +93,9 @@ export default function TicketModal({ ticket, children, onUpdate }: TicketModalP
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Chamado {ticket.ticketNumber}</span>
+          <DialogHeader className="pr-8">
+            <DialogTitle className="flex flex-col space-y-2">
+              <span className="text-xl font-semibold">Chamado {ticket.ticketNumber}</span>
               <div className="flex items-center space-x-2">
                 <Badge className={getStatusColor(ticket.status)}>
                   {getStatusLabel(ticket.status)}
@@ -187,17 +187,7 @@ export default function TicketModal({ ticket, children, onUpdate }: TicketModalP
                   </div>
                 )}
 
-                {/* Debug info sempre visível */}
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                  <strong>Debug:</strong> Ticket ID: {ticket.id} | 
-                  Carregando: {loading ? 'Sim' : 'Não'} | 
-                  Campos encontrados: {customFields.length} |
-                  {customFields.length > 0 && (
-                    <div className="mt-2">
-                      Dados: {JSON.stringify(customFields.map(f => ({ name: f.customField?.name, value: f.value })), null, 2)}
-                    </div>
-                  )}
-                </div>
+
               </CardContent>
             </Card>
 
