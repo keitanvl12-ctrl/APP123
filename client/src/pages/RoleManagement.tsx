@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import * as React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,8 +54,17 @@ export default function RoleManagement() {
   });
 
   // Debug: Log data
+  console.log('=== DEBUG ROLES DATA ===');
   console.log('Roles data received:', roles);
+  console.log('Roles length:', roles.length);
+  console.log('Is array?', Array.isArray(roles));
   console.log('Permissions data received:', allPermissions);
+  
+  // Force refetch when needed
+  React.useEffect(() => {
+    console.log('RoleManagement component mounted, refetching...');
+    refetchRoles();
+  }, []);
 
   // Mutation para criar função
   const createRoleMutation = useMutation({
@@ -311,6 +321,7 @@ export default function RoleManagement() {
               }
             };
 
+            console.log('Rendering role:', role);
             return (
               <Card key={role.id} className={`relative ${getRoleColor(role.id)}`}>
                 <CardHeader>
@@ -319,7 +330,7 @@ export default function RoleManagement() {
                       <CardTitle className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${getBadgeColor(role.id)} opacity-80`}></div>
                         {role.name}
-                        <Badge variant="secondary" className="ml-2">
+                        <Badge variant="secondary" className={`ml-2 ${getBadgeColor(role.id)}`}>
                           {role.userCount} usuário(s)
                         </Badge>
                       </CardTitle>
