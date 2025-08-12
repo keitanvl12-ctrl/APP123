@@ -55,11 +55,8 @@ export default function RoleManagementSimple() {
   // Mutations para CRUD de roles
   const createRoleMutation = useMutation({
     mutationFn: async (newRole: { name: string; description: string; permissions: string[] }) => {
-      return apiRequest('/api/permissions/roles', {
-        method: 'POST',
-        body: JSON.stringify(newRole),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const response = await apiRequest('/api/permissions/roles', 'POST', newRole);
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/roles'] });
@@ -81,11 +78,8 @@ export default function RoleManagementSimple() {
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ roleId, ...updates }: { roleId: string; name: string; description: string; permissions: string[] }) => {
-      return apiRequest(`/api/permissions/roles/${roleId}`, {
-        method: 'PUT',
-        body: JSON.stringify(updates),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const response = await apiRequest(`/api/permissions/roles/${roleId}`, 'PUT', updates);
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/roles'] });
@@ -107,9 +101,8 @@ export default function RoleManagementSimple() {
 
   const deleteRoleMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/permissions/roles/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await apiRequest(`/api/permissions/roles/${id}`, 'DELETE');
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/roles'] });
