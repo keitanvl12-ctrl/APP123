@@ -273,6 +273,12 @@ export default function KanbanBoard() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Estados para edição de ticket
+  const [editModal, setEditModal] = useState<{
+    isOpen: boolean;
+    ticket: any | null;
+  }>({ isOpen: false, ticket: null });
   const [priorityFilter, setPriorityFilter] = useState('all');
 
   // WebSocket for real-time updates
@@ -641,9 +647,11 @@ export default function KanbanBoard() {
   });
 
   const handleDeleteTicket = (ticketId: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este ticket? Esta ação não pode ser desfeita.')) {
-      deleteTicketMutation.mutate(ticketId);
-    }
+    deleteTicketMutation.mutate(ticketId);
+  };
+
+  const handleEditTicket = (ticket: any) => {
+    setEditModal({ isOpen: true, ticket });
   };
 
   const handleFinalizationConfirm = async (finalizationData: any) => {
@@ -934,9 +942,14 @@ export default function KanbanBoard() {
                 {filteredTickets
                   .filter(ticket => ticket.status === column.id)
                   .map((ticket) => (
-                    <TicketModal key={ticket.id} ticket={ticket} onUpdate={(updatedTicket: any) => {
-                      // Atualizar lista será feita pela revalidação de query
-                    }}>
+                    <TicketModal 
+                      key={ticket.id} 
+                      ticket={ticket} 
+                      onUpdate={() => queryClient.invalidateQueries({ queryKey: ['/api/tickets'] })}
+                      onEdit={handleEditTicket}
+                      onDelete={handleDeleteTicket}
+                      userRole={currentUser?.role || 'admin'}
+                    >
                       <Card 
                         className="cursor-move hover:shadow-xl transition-all duration-300 border-0 shadow-sm bg-white transform hover:scale-105 active:scale-95"
                         draggable
@@ -1246,9 +1259,13 @@ export default function KanbanBoard() {
                   <TableCell className="text-sm">{new Date(ticket.createdAt).toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-1">
-                      <TicketModal ticket={ticket} onUpdate={(updatedTicket: any) => {
-                        // Atualizar lista será feita pela revalidação de query
-                      }}>
+                      <TicketModal 
+                        ticket={ticket} 
+                        onUpdate={() => queryClient.invalidateQueries({ queryKey: ['/api/tickets'] })}
+                        onEdit={handleEditTicket}
+                        onDelete={handleDeleteTicket}
+                        userRole={currentUser?.role || 'admin'}
+                      >
                         <Button variant="ghost" size="icon" className="w-8 h-8">
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -1313,6 +1330,19 @@ export default function KanbanBoard() {
           isOpen={serviceOrderModal.isOpen}
           onClose={() => setServiceOrderModal({ isOpen: false, ticket: null, finalizationData: null })}
           finalizationData={serviceOrderModal.finalizationData}
+        />
+      )}
+
+      {/* Modal de edição de ticket */}
+      {editModal.isOpen && editModal.ticket && (
+        <CreateTicketModal
+          isOpen={editModal.isOpen}
+          onClose={() => setEditModal({ isOpen: false, ticket: null })}
+          onTicketCreated={() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
+            setEditModal({ isOpen: false, ticket: null });
+          }}
+          editTicket={editModal.ticket}
         />
       )}
     </div>

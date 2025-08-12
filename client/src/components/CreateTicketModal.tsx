@@ -18,6 +18,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 interface CreateTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onTicketCreated?: () => void;
+  editTicket?: any;
 }
 
 interface CustomField {
@@ -30,7 +32,7 @@ interface CustomField {
   order: number;
 }
 
-export default function CreateTicketModal({ isOpen, onClose }: CreateTicketModalProps) {
+export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, editTicket }: CreateTicketModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -64,15 +66,32 @@ export default function CreateTicketModal({ isOpen, onClose }: CreateTicketModal
       description: insertTicketSchema.shape.description.min(10, "Descrição deve ter pelo menos 10 caracteres"),
     })),
     defaultValues: {
-      subject: "",
-      description: "",
-      priority: "medium",
-      category: "",
-      responsibleDepartmentId: "",
-      requesterDepartmentId: "",
-      assignedTo: null,
+      subject: editTicket?.subject || "",
+      description: editTicket?.description || "",
+      priority: editTicket?.priority || "medium",
+      category: editTicket?.category || "",
+      responsibleDepartmentId: editTicket?.responsibleDepartmentId || "",
+      requesterDepartmentId: editTicket?.requesterDepartmentId || "",
+      assignedTo: editTicket?.assignedTo || null,
     },
   });
+
+  // Set initial values when editing
+  useEffect(() => {
+    if (editTicket) {
+      setSelectedDepartment(editTicket.responsibleDepartmentId || "");
+      setSelectedCategoryId(editTicket.category || "");
+      form.reset({
+        subject: editTicket.subject || "",
+        description: editTicket.description || "",
+        priority: editTicket.priority || "medium",
+        category: editTicket.category || "",
+        responsibleDepartmentId: editTicket.responsibleDepartmentId || "",
+        requesterDepartmentId: editTicket.requesterDepartmentId || "",
+        assignedTo: editTicket.assignedTo || null,
+      });
+    }
+  }, [editTicket, form]);
 
   // Debug logging
   console.log("Debug - Selected category ID:", selectedCategoryId);
@@ -90,25 +109,32 @@ export default function CreateTicketModal({ isOpen, onClose }: CreateTicketModal
   // Simular usuário logado (pegar usuário admin com departamento)
   const currentUser = users?.find(u => u.role === 'admin') || users?.[0];
 
-  const createTicketMutation = useMutation({
+  const createOrUpdateTicketMutation = useMutation({
     mutationFn: async (data: InsertTicket) => {
       // In a real app, createdBy would come from authenticated user
       if (!currentUser) {
         throw new Error("Usuário não encontrado");
       }
 
-      const ticketData = { 
-        ...data, 
-        createdBy: currentUser.id,
-        requesterDepartmentId: currentUser.departmentId || null,
-      };
-      const response = await apiRequest("/api/tickets", "POST", ticketData);
-      return response.json();
+      if (editTicket) {
+        // Updating existing ticket
+        const response = await apiRequest(`/api/tickets/${editTicket.id}`, "PATCH", data);
+        return response.json();
+      } else {
+        // Creating new ticket
+        const ticketData = { 
+          ...data, 
+          createdBy: currentUser.id,
+          requesterDepartmentId: currentUser.departmentId || null,
+        };
+        const response = await apiRequest("/api/tickets", "POST", ticketData);
+        return response.json();
+      }
     },
     onSuccess: () => {
       toast({
         title: "Sucesso",
-        description: "Ticket criado com sucesso",
+        description: editTicket ? "Ticket atualizado com sucesso" : "Ticket criado com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
@@ -116,6 +142,7 @@ export default function CreateTicketModal({ isOpen, onClose }: CreateTicketModal
       setSelectedFiles([]);
       setSelectedDepartment("");
       setSelectedCategoryId("");
+      onTicketCreated?.();
       onClose();
     },
     onError: (error) => {
@@ -149,7 +176,7 @@ export default function CreateTicketModal({ isOpen, onClose }: CreateTicketModal
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            Novo Ticket
+            {editTicket ? 'Editar Ticket' : 'Novo Ticket'}
             <Button
               variant="ghost"
               size="sm"
@@ -160,12 +187,12 @@ export default function CreateTicketModal({ isOpen, onClose }: CreateTicketModal
             </Button>
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Preencha os campos abaixo para criar seu ticket
+            {editTicket ? 'Edite os campos do ticket conforme necessário' : 'Preencha os campos abaixo para criar seu ticket'}
           </p>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((data) => createTicketMutation.mutate(data))} className="space-y-6">
+          <form onSubmit={form.handleSubmit((data) => createOrUpdateTicketMutation.mutate(data))} className="space-y-6">
             <div className="grid grid-cols-1 gap-4">
               {/* Assunto */}
               <FormField
@@ -530,9 +557,11 @@ export default function CreateTicketModal({ isOpen, onClose }: CreateTicketModal
               <Button
                 type="submit"
                 className="bg-primary hover:bg-primary/90"
-                disabled={createTicketMutation.isPending}
+                disabled={createOrUpdateTicketMutation.isPending}
               >
-                {createTicketMutation.isPending ? "Criando..." : "Criar Ticket"}
+                {createOrUpdateTicketMutation.isPending 
+                  ? (editTicket ? "Atualizando..." : "Criando...") 
+                  : (editTicket ? "Atualizar Ticket" : "Criar Ticket")}
               </Button>
             </div>
           </form>

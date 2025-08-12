@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Clock, User, FileText, Calendar, AlertCircle,
-  CheckCircle, Building2, Tag, MessageCircle, UserPlus
+  CheckCircle, Building2, Tag, MessageCircle, UserPlus,
+  Edit, Trash2, Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,12 +16,45 @@ interface TicketModalProps {
   ticket: any;
   children: React.ReactNode;
   onUpdate?: (ticket: any) => void;
+  onEdit?: (ticket: any) => void;
+  onDelete?: (ticketId: string) => void;
+  userRole?: string;
 }
 
-export default function TicketModal({ ticket, children, onUpdate }: TicketModalProps) {
+export default function TicketModal({ ticket, children, onUpdate, onEdit, onDelete, userRole = 'admin' }: TicketModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [customFields, setCustomFields] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleDelete = async () => {
+    if (window.confirm('Tem certeza que deseja excluir este ticket? Esta ação não pode ser desfeita.')) {
+      try {
+        const response = await fetch(`/api/tickets/${ticket.id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+
+        if (response.ok) {
+          toast({
+            title: "Ticket excluído",
+            description: "O ticket foi excluído com sucesso."
+          });
+          setIsOpen(false);
+          onDelete?.(ticket.id);
+        } else {
+          throw new Error('Falha ao excluir ticket');
+        }
+      } catch (error) {
+        console.error('Erro ao excluir ticket:', error);
+        toast({
+          title: "Erro ao excluir",
+          description: "Não foi possível excluir o ticket. Tente novamente.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
 
   // Buscar campos customizados quando o modal abrir
   useEffect(() => {
@@ -94,16 +130,42 @@ export default function TicketModal({ ticket, children, onUpdate }: TicketModalP
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pr-8">
-            <DialogTitle className="flex flex-col space-y-2">
-              <span className="text-xl font-semibold">Chamado {ticket.ticketNumber}</span>
-              <div className="flex items-center space-x-2">
-                <Badge className={getStatusColor(ticket.status)}>
-                  {getStatusLabel(ticket.status)}
-                </Badge>
-                <Badge className={getPriorityColor(ticket.priority)}>
-                  {getPriorityLabel(ticket.priority)}
-                </Badge>
+            <DialogTitle className="flex justify-between items-start">
+              <div className="flex flex-col space-y-2">
+                <span className="text-xl font-semibold">Chamado {ticket.ticketNumber}</span>
+                <div className="flex items-center space-x-2">
+                  <Badge className={getStatusColor(ticket.status)}>
+                    {getStatusLabel(ticket.status)}
+                  </Badge>
+                  <Badge className={getPriorityColor(ticket.priority)}>
+                    {getPriorityLabel(ticket.priority)}
+                  </Badge>
+                </div>
               </div>
+              
+              {/* Botões de Ação - Apenas para Administradores */}
+              {userRole === 'admin' && (
+                <div className="flex items-center space-x-2 mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit?.(ticket)}
+                    className="flex items-center space-x-1"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Editar</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDelete()}
+                    className="flex items-center space-x-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir</span>
+                  </Button>
+                </div>
+              )}
             </DialogTitle>
           </DialogHeader>
 

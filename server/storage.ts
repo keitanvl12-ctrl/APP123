@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, tickets, comments, attachments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues, permissions } from "@shared/schema";
+import { users, tickets, comments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues, permissions } from "@shared/schema";
 import { eq, desc, count, sql, and, gte, lte, or, isNull, ne } from "drizzle-orm";
 import {
   type User,
@@ -9,8 +9,7 @@ import {
   type TicketWithDetails,
   type Comment,
   type InsertComment,
-  type Attachment,
-  type InsertAttachment,
+
   type Category,
   type InsertCategory,
   type SlaRule,
@@ -955,8 +954,8 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(comments.userId, users.id))
       .where(eq(comments.ticketId, id));
 
-    // Get attachments
-    const ticketAttachments = await db.select().from(attachments).where(eq(attachments.ticketId, id));
+    // Get attachments - removido temporariamente pois attachments não está definido no schema
+    const ticketAttachments: any[] = [];
 
     const baseTicket = {
       ...ticket,
@@ -1344,15 +1343,19 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTicket(id: string): Promise<boolean> {
     try {
-      // Primeiro, excluir comentários relacionados
+      // Primeiro, excluir valores de campos customizados
+      await db.delete(customFieldValues).where(eq(customFieldValues.ticketId, id));
+      
+      // Segundo, excluir comentários relacionados
       await db.delete(comments).where(eq(comments.ticketId, id));
       
-      // Depois, excluir anexos relacionados
-      await db.delete(attachments).where(eq(attachments.ticketId, id));
+      // Terceiro, excluir anexos relacionados (se existir a tabela)
+      // await db.delete(attachments).where(eq(attachments.ticketId, id));
       
       // Finalmente, excluir o ticket
-      await db.delete(tickets).where(eq(tickets.id, id));
+      const result = await db.delete(tickets).where(eq(tickets.id, id));
       
+      console.log('Ticket deleted successfully:', id);
       return true;
     } catch (error) {
       console.error("Error deleting ticket:", error);
