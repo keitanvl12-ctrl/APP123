@@ -188,12 +188,33 @@ router.put('/roles/:roleId', async (req, res) => {
       await pool.query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
       console.log(`🧹 Cleared all permissions for role ${roleId}`);
       
-      // Then add the new permissions
+      // Then add the new permissions - map frontend IDs to database IDs
       if (permissions.length > 0) {
+        // Get the correct mapping by fetching from database
+        const allPermsResult = await pool.query('SELECT id, code FROM system_permissions');
+        const permissionMap: Record<string, string> = {};
+        
+        // Build mapping from code to ID
+        for (const row of allPermsResult.rows) {
+          permissionMap[row.code] = row.id;
+        }
+        
+        // Also add direct ID mappings for fallback
+        for (const row of allPermsResult.rows) {
+          permissionMap[row.id] = row.id;
+        }
+        
+        console.log('📋 Available permission mappings:', Object.keys(permissionMap).slice(0, 10));
+
         for (const permissionId of permissions) {
+          // Map frontend ID to database ID
+          const dbPermissionId = permissionMap[permissionId] || permissionId;
+          
+          console.log(`📝 Mapping ${permissionId} -> ${dbPermissionId}`);
+          
           await pool.query(
             'INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-            [roleId, permissionId]
+            [roleId, dbPermissionId]
           );
         }
         console.log(`✅ Assigned ${permissions.length} permissions to role ${roleId}`);

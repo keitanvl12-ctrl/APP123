@@ -94,7 +94,7 @@ export default function RoleManagement() {
   // Mutation para atualizar função
   const updateRoleMutation = useMutation({
     mutationFn: async (data: { id: string; name: string; description?: string; permissions: string[] }) =>
-      apiRequest(`/api/roles/${data.id}`, {
+      apiRequest(`/api/permissions/roles/${data.id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
