@@ -1032,14 +1032,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tickets/:id/pause", async (req, res) => {
     try {
       const { id } = req.params;
-      const { reason, duration } = req.body;
+      const { reason, details, estimatedHours } = req.body;
       
-      if (!reason || !duration) {
-        return res.status(400).json({ message: "Motivo e duração são obrigatórios" });
+      if (!reason) {
+        return res.status(400).json({ message: "Motivo é obrigatório" });
       }
       
-      const pauseRecord = await storage.createPauseRecord(id, reason, duration);
-      res.json(pauseRecord);
+      // Update ticket status to 'on_hold' and create pause record
+      await storage.updateTicket(id, { status: 'on_hold' });
+      
+      // Create pause record with estimated return time
+      const duration = estimatedHours ? parseInt(estimatedHours) : 24; // Default 24 hours if not provided
+      const pauseRecord = await storage.createPauseRecord(id, reason, duration, details);
+      
+      // Notify real-time updates
+      const updatedTicket = await storage.getTicket(id);
+      // Real-time updates will be handled by WebSocket in separate module
+      
+      res.json({ 
+        success: true, 
+        pauseRecord,
+        message: `Ticket pausado por ${duration} horas. SLA pausado durante este período.`
+      });
     } catch (error) {
       console.error("Error pausing ticket:", error);
       res.status(500).json({ message: "Failed to pause ticket" });

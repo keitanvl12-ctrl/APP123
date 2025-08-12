@@ -122,7 +122,7 @@ export interface IStorage {
   
   // Pause Management  
   getTicketPauseRecords(ticketId: string): Promise<any[]>;
-  createPauseRecord(ticketId: string, reason: string, duration: number): Promise<any>;
+  createPauseRecord(ticketId: string, reason: string, duration: number, details?: string): Promise<any>;
   resumeTicket(ticketId: string): Promise<boolean>;
   
   // SLA Calculation
@@ -2395,24 +2395,40 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async createPauseRecord(ticketId: string, reason: string, duration: number): Promise<any> {
+  async createPauseRecord(ticketId: string, reason: string, duration: number, details?: string): Promise<any> {
     try {
+      // Build pause comment content
+      let content = `**Ticket pausado por ${duration} horas**\n\nMotivo: ${reason}`;
+      if (details) {
+        content += `\n\nDetalhes: ${details}`;
+      }
+      content += `\n\n⏰ **SLA pausado durante este período**`;
+
       // Create pause comment
       const pauseComment = await this.createComment({
         ticketId,
         userId: 'system', // In real implementation, use current user
-        content: `**Ticket pausado por ${duration} horas**\n\nMotivo: ${reason}`,
+        content,
         type: 'pause'
       });
 
-      // Update ticket status to on_hold
+      // Calculate expected return time
+      const expectedReturnAt = new Date(new Date().getTime() + duration * 60 * 60 * 1000);
+
+      // Update ticket status to on_hold with pause information
       await this.updateTicket(ticketId, {
         status: 'on_hold',
         pauseReason: reason,
         pausedAt: new Date()
       });
 
-      return pauseComment;
+      return {
+        ...pauseComment,
+        duration,
+        expectedReturnAt,
+        reason,
+        details
+      };
     } catch (error) {
       console.error('Error creating pause record:', error);
       throw error;
