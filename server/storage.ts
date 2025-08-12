@@ -653,6 +653,17 @@ export class DatabaseStorage implements IStorage {
 
   // Get roles with user counts
   async getRoles(): Promise<any[]> {
+    // Get actual user counts from database
+    const userCounts = await db
+      .select({ 
+        role: users.role, 
+        count: count() 
+      })
+      .from(users)
+      .groupBy(users.role);
+
+    console.log('User counts from database:', userCounts);
+
     const roles = [
       {
         id: 'administrador',
@@ -660,15 +671,17 @@ export class DatabaseStorage implements IStorage {
         description: 'Acesso completo ao sistema com todas as permissões',
         color: 'bg-purple-100 text-purple-800',
         permissions: 16,
-        isSystem: true
+        isSystem: true,
+        userCount: userCounts.find(u => u.role === 'admin')?.count || 0
       },
       {
         id: 'supervisor',
         name: 'Supervisor',
         description: 'Gerencia equipes e tem acesso a relatórios departamentais', 
         color: 'bg-blue-100 text-blue-800',
-        permissions: 12,
-        isSystem: true
+        permissions: 9,
+        isSystem: true,
+        userCount: userCounts.find(u => u.role === 'supervisor')?.count || 0
       },
       {
         id: 'atendente',
@@ -676,7 +689,8 @@ export class DatabaseStorage implements IStorage {
         description: 'Pode responder tickets atribuídos e ver tickets do departamento',
         color: 'bg-yellow-100 text-yellow-800', 
         permissions: 6,
-        isSystem: true
+        isSystem: true,
+        userCount: userCounts.find(u => u.role === 'atendente')?.count || 0
       },
       {
         id: 'solicitante',
@@ -684,47 +698,13 @@ export class DatabaseStorage implements IStorage {
         description: 'Pode apenas criar tickets e visualizar seus próprios',
         color: 'bg-green-100 text-green-800', 
         permissions: 2,
-        isSystem: true
+        isSystem: true,
+        userCount: userCounts.find(u => u.role === 'solicitante')?.count || 0
       }
     ];
 
-    // Count users for each role
-    const userCounts = await Promise.all(
-      roles.map(async (role) => {
-        // Map role IDs to database role values
-        let dbRole;
-        switch (role.id) {
-          case 'administrador':
-            dbRole = 'admin';
-            break;
-          case 'supervisor':
-            dbRole = 'supervisor';
-            break;
-          case 'atendente':
-            dbRole = 'atendente';
-            break;
-          case 'solicitante':
-            dbRole = 'solicitante';
-            break;
-          default:
-            dbRole = role.id;
-        }
-
-        const [result] = await db
-          .select({ count: count() })
-          .from(users)
-          .where(eq(users.role, dbRole));
-        
-        const userCount = Number(result?.count) || 0;
-        
-        return {
-          ...role,
-          userCount: userCount
-        };
-      })
-    );
-
-    return userCounts;
+    console.log('Final roles with counts:', roles);
+    return roles;
   }
 
   // Get role permissions
@@ -790,7 +770,7 @@ export class DatabaseStorage implements IStorage {
           'Gerenciar SLA': false
         }
       },
-      'colaborador': {
+      'atendente': {
         'Usuários': {
           'Visualizar Usuários': false,
           'Gerenciar Usuários': false,
@@ -799,6 +779,36 @@ export class DatabaseStorage implements IStorage {
         'Tickets': {
           'Visualizar Tickets': true,
           'Gerenciar Tickets': true,
+          'Atribuir Tickets': false,
+          'Finalizar Tickets': false
+        },
+        'Departamentos': {
+          'Visualizar Departamentos': false,
+          'Gerenciar Departamentos': false
+        },
+        'Relatórios': {
+          'Visualizar Relatórios': false,
+          'Exportar Relatórios': false
+        },
+        'Configurações': {
+          'Visualizar Configurações': false,
+          'Gerenciar Configurações': false,
+          'Gerenciar Funções': false
+        },
+        'SLA': {
+          'Visualizar SLA': false,
+          'Gerenciar SLA': false
+        }
+      },
+      'solicitante': {
+        'Usuários': {
+          'Visualizar Usuários': false,
+          'Gerenciar Usuários': false,
+          'Segurança de Usuários': false
+        },
+        'Tickets': {
+          'Visualizar Tickets': false,
+          'Gerenciar Tickets': false,
           'Atribuir Tickets': false,
           'Finalizar Tickets': false
         },
