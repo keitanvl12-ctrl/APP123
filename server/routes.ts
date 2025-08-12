@@ -100,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tickets with permission-based filtering 
-  app.get("/api/tickets", requireAnyPermission(['tickets_view_all', 'tickets_view_department', 'tickets_view_own']), async (req, res) => {
+  app.get("/api/tickets", requireAnyPermission(['perm_tickets_view_all', 'perm_tickets_view_department', 'perm_tickets_view_own']), async (req, res) => {
     try {
       const authReq = req as AuthenticatedRequest;
       const user = authReq.user;
@@ -249,7 +249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create ticket - requires tickets_create permission
-  app.post("/api/tickets", requirePermission('tickets_create'), async (req, res) => {
+  app.post("/api/tickets", requirePermission('perm_tickets_create'), async (req, res) => {
     try {
       console.log("Request body:", req.body);
       
@@ -470,7 +470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Users - Protected by users_view permission
-  app.get("/api/users", requirePermission('users_view'), async (req, res) => {
+  app.get("/api/users", requirePermission('perm_users_view'), async (req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users.map(user => ({ 
@@ -513,7 +513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Change user password endpoint - requires users_edit permission
-  app.put("/api/users/:id/change-password", requirePermission('users_edit'), async (req, res) => {
+  app.put("/api/users/:id/change-password", requirePermission('perm_users_edit'), async (req, res) => {
     try {
       const { id } = req.params;
       const { password } = req.body;
@@ -535,7 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Block/Unblock user endpoint - requires users_edit permission
-  app.put("/api/users/:id/block", requirePermission('users_edit'), async (req, res) => {
+  app.put("/api/users/:id/block", requirePermission('perm_users_edit'), async (req, res) => {
     try {
       const { id } = req.params;
       const { block } = req.body;
@@ -554,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete user endpoint - requires users_delete permission
-  app.delete("/api/users/:id", requirePermission('users_delete'), async (req, res) => {
+  app.delete("/api/users/:id", requirePermission('perm_users_delete'), async (req, res) => {
     try {
       const { id } = req.params;
       console.log('Attempting to delete user with ID:', id);
@@ -614,7 +614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users", requirePermission('users_create'), async (req, res) => {
+  app.post("/api/users", requirePermission('perm_users_create'), async (req, res) => {
     try {
       // Validar campos obrigatórios
       if (!req.body.name || !req.body.email || !req.body.password || !req.body.role || !req.body.departmentId) {

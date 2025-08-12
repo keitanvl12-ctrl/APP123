@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { storage } from '../storage';
 import { z } from 'zod';
+import { pool } from '../db';
 
 const router = Router();
 
@@ -173,40 +174,67 @@ router.delete('/roles/:roleId', async (req, res) => {
   }
 });
 
-// Atualizar função
+// Atualizar função e suas permissões - FUNCIONAL
 router.put('/roles/:roleId', async (req, res) => {
   try {
     const { roleId } = req.params;
     const { name, description, permissions } = req.body;
 
-    console.log(`Updating role ${roleId} with:`, { name, description, permissions: permissions?.length });
+    console.log(`🔄 Updating role ${roleId} with:`, { name, description, permissions: permissions?.length });
 
-    // Para funções do sistema, apenas atualizar as permissões
-    const systemRoles = ['administrador', 'supervisor', 'atendente', 'solicitante'];
-    
-    if (systemRoles.includes(roleId)) {
-      console.log(`System role ${roleId} permissions updated successfully`);
+    // Update role permissions if provided
+    if (permissions && Array.isArray(permissions)) {
+      // First clear all existing permissions
+      await pool.query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
+      console.log(`🧹 Cleared all permissions for role ${roleId}`);
       
-      // Simular sucesso para funções do sistema
-      res.json({ 
-        success: true, 
-        message: 'Permissões da função atualizada com sucesso',
-        roleId,
-        permissions
-      });
-    } else {
-      // Para funções customizadas, atualizar nome, descrição e permissões
-      res.json({ 
-        success: true, 
-        message: 'Função customizada atualizada com sucesso',
-        roleId,
-        name,
-        description,
-        permissions
-      });
+      // Then add the new permissions
+      if (permissions.length > 0) {
+        for (const permissionId of permissions) {
+          await pool.query(
+            'INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [roleId, permissionId]
+          );
+        }
+        console.log(`✅ Assigned ${permissions.length} permissions to role ${roleId}`);
+      }
     }
+
+    // Update role basic info for custom roles (not system roles)
+    const systemRoles = ['administrador', 'supervisor', 'atendente', 'solicitante'];
+    if (!systemRoles.includes(roleId) && (name || description)) {
+      const setParts = [];
+      const values = [];
+      let paramIndex = 1;
+
+      if (name) {
+        setParts.push(`name = $${paramIndex++}`);
+        values.push(name);
+      }
+      if (description !== undefined) {
+        setParts.push(`description = $${paramIndex++}`);
+        values.push(description);
+      }
+
+      if (setParts.length > 0) {
+        setParts.push(`updated_at = $${paramIndex++}`);
+        values.push(new Date());
+        values.push(roleId);
+
+        const query = `UPDATE system_roles SET ${setParts.join(', ')} WHERE id = $${paramIndex}`;
+        await pool.query(query, values);
+        console.log(`✅ Updated role info for ${roleId}`);
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Permissões da função atualizadas com sucesso',
+      roleId,
+      permissionsCount: permissions ? permissions.length : 0
+    });
   } catch (error) {
-    console.error('Erro ao atualizar função:', error);
+    console.error('❌ Erro ao atualizar função:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
