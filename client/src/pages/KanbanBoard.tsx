@@ -629,9 +629,10 @@ export default function KanbanBoard() {
         credentials: 'include'
       });
       if (!response.ok) {
-        throw new Error('Falha ao excluir ticket');
+        const errorData = await response.text();
+        throw new Error(errorData || 'Falha ao excluir ticket');
       }
-      return response.json();
+      return response.ok;
     },
     onSuccess: () => {
       toast({
@@ -639,15 +640,17 @@ export default function KanbanBoard() {
         description: "O ticket foi excluído com sucesso."
       });
       queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
       setDeleteModal({ isOpen: false, ticket: null });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Erro ao excluir ticket:', error);
       toast({
         title: "Erro ao excluir",
-        description: "Não foi possível excluir o ticket. Tente novamente.",
+        description: error.message || "Não foi possível excluir o ticket. Tente novamente.",
         variant: "destructive"
       });
+      setDeleteModal({ isOpen: false, ticket: null });
     }
   });
 
