@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../lib/queryClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -63,8 +63,10 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
       console.log("🔄 Attempting assignment:", { ticketId, assignedTo });
       const result = await apiRequest(`/api/tickets/${ticketId}/assign`, 'PATCH', { assignedTo });
       console.log("✅ Assignment result:", result);
-      console.log("✅ Assignment result assignedToUser:", result?.assignedToUser);
-      return result;
+      // result is a Response object, need to parse it
+      const data = await result.json();
+      console.log("✅ Assignment result assignedToUser:", data?.assignedToUser);
+      return data;
     },
     onSuccess: (data) => {
       console.log("🎉 Assignment mutation successful:", data);
@@ -114,30 +116,32 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
     enabled: isOpen,
   });
 
-  // Buscar valores dos campos customizados do ticket
-  const { data: customFieldValues, isLoading: customFieldsLoading, error: customFieldsError } = useQuery<any[]>({
-    queryKey: ['/api/tickets', ticketId, 'custom-fields', Date.now()], // Force fresh data with timestamp
-    enabled: isOpen && !!ticketId,
-    staleTime: 0,
-    gcTime: 0, // React Query v5 usa gcTime em vez de cacheTime
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    refetchOnWindowFocus: true,
-  });
-
-  console.log("🔍 Custom field values for ticket", ticketId, ":", customFieldValues);
-  console.log("🔍 Query enabled:", isOpen && !!ticketId);
-  console.log("🔍 Loading state:", customFieldsLoading);
-  console.log("🔍 Error state:", customFieldsError);
+  // Estado local para campos customizados - abordagem direta
+  const [customFieldValues, setCustomFieldValues] = useState<any[]>([]);
+  const [customFieldsLoading, setCustomFieldsLoading] = useState(false);
   
-  // Teste direto da API quando o modal abrir
+  // Buscar campos customizados diretamente quando o modal abrir
   useEffect(() => {
     if (isOpen && ticketId) {
-      console.log("🔍 Testing direct API call for ticket:", ticketId);
-      fetch(`/api/tickets/${ticketId}/custom-fields`)
+      setCustomFieldsLoading(true);
+      console.log("🔍 Fetching custom fields for ticket:", ticketId);
+      
+      fetch(`/api/tickets/${ticketId}/custom-fields`, {
+        credentials: 'include'
+      })
         .then(res => res.json())
-        .then(data => console.log("🔍 Direct API response:", data))
-        .catch(err => console.error("🔍 Direct API error:", err));
+        .then(data => {
+          console.log("🔍 Custom fields data received:", data);
+          setCustomFieldValues(data || []);
+          setCustomFieldsLoading(false);
+        })
+        .catch(err => {
+          console.error("🔍 Error fetching custom fields:", err);
+          setCustomFieldValues([]);
+          setCustomFieldsLoading(false);
+        });
+    } else {
+      setCustomFieldValues([]);
     }
   }, [isOpen, ticketId]);
 
@@ -433,8 +437,8 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
               <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
                 <strong>Debug:</strong> Ticket ID: {ticketId} | 
                 Loading: {customFieldsLoading ? 'true' : 'false'} | 
-                Error: {customFieldsError ? String(customFieldsError) : 'none'} |
-                Data: {customFieldValues ? JSON.stringify(customFieldValues, null, 2) : 'null'}
+                Fields Count: {customFieldValues?.length || 0} |
+                Data: {customFieldValues?.length > 0 ? JSON.stringify(customFieldValues.map(f => ({ name: f.customField?.name, value: f.value })), null, 2) : 'Nenhum campo encontrado'}
               </div>
             </CardContent>
           </Card>
@@ -463,7 +467,7 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
                         </label>
                         <div className="bg-gray-50 p-3 rounded border">
                           <p className="text-sm text-gray-800">
-                            {typeof value === 'object' ? JSON.stringify(value, null, 2) : (value || 'Não informado')}
+                            {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value || 'Não informado')}
                           </p>
                         </div>
                       </div>
