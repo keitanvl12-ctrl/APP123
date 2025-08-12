@@ -34,7 +34,7 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
     description: '',
     priority: '',
     status: '',
-    assignedTo: ''
+    assignedTo: 'unassigned'
   });
   const [users, setUsers] = useState<any[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -75,20 +75,26 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       description: ticket.description || '',
       priority: ticket.priority || '',
       status: ticket.status || '',
-      assignedTo: ticket.assignedTo || ''
+      assignedTo: ticket.assignedTo || 'unassigned'
     });
     setIsEditing(true);
   };
 
   const handleSaveEdit = async () => {
     try {
+      // Preparar dados com assignedTo tratado corretamente
+      const dataToSend = {
+        ...editData,
+        assignedTo: editData.assignedTo === 'unassigned' ? null : editData.assignedTo
+      };
+      
       const response = await fetch(`/api/tickets/${ticket.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(editData)
+        body: JSON.stringify(dataToSend)
       });
 
       if (response.ok) {
@@ -97,10 +103,11 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
           description: "O ticket foi atualizado com sucesso."
         });
         setIsEditing(false);
-        onUpdate?.();
-        // Fechar o modal e atualizar os dados
+        if (onUpdate) {
+          onUpdate();
+        }
+        // Fechar o modal
         setIsOpen(false);
-        window.location.reload(); // Força refresh dos dados
       } else {
         throw new Error('Falha ao atualizar ticket');
       }
@@ -121,7 +128,7 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       description: ticket.description || '',
       priority: ticket.priority || '',
       status: ticket.status || '',
-      assignedTo: ticket.assignedTo || ''
+      assignedTo: ticket.assignedTo || 'unassigned'
     });
   };
 
@@ -449,7 +456,7 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                           <SelectValue placeholder="Selecionar responsável" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Não atribuído</SelectItem>
+                          <SelectItem value="unassigned">Não atribuído</SelectItem>
                           {users.map(user => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.name} ({user.role})

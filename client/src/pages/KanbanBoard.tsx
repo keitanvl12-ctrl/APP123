@@ -1047,6 +1047,17 @@ export default function KanbanBoard() {
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      console.log('🔧 Opening edit modal for ticket:', ticket.id);
+                                      setEditModal({ isOpen: true, ticket });
+                                    }}
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setDeleteModal({ isOpen: true, ticket });
                                     }}
                                     className="text-red-600"
