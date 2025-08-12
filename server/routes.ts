@@ -138,7 +138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Administradores veem todos os tickets (sem filtros adicionais)
       }
       
-      const tickets = await storage.getAllTickets(filters);
+      const tickets = await storage.getTicketsByUser(user?.id || "mock-admin-id");
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);

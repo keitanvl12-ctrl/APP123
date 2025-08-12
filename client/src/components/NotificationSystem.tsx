@@ -38,17 +38,19 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ isOpen, onClose
   });
 
   // Buscar tickets atribuídos ao usuário para gerar notificações
-  const { data: assignedTickets } = useQuery({
+  const { data: assignedTickets = [] } = useQuery({
     queryKey: ['/api/tickets/assigned', currentUser.id],
     queryFn: async () => {
       const response = await fetch(`/api/tickets?assignedTo=${currentUser.id}&status=open`);
-      return response.json();
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
     refetchInterval: 60000, // Atualizar a cada minuto
   });
 
   useEffect(() => {
-    if (assignedTickets) {
+    if (assignedTickets && Array.isArray(assignedTickets)) {
       // Gerar notificações para tickets atribuídos
       const ticketNotifications: Notification[] = assignedTickets.map((ticket: any) => {
         const createdTime = new Date(ticket.createdAt);
