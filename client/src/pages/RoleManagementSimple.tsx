@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { Settings, Users, Plus, Edit2, Trash2 } from 'lucide-react';
 
 interface Role {
   id: string;
@@ -15,6 +23,14 @@ interface Role {
 }
 
 export default function RoleManagementSimple() {
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [roleName, setRoleName] = useState('');
+  const [roleDescription, setRoleDescription] = useState('');
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   // Buscar funções do sistema - versão simples sem cache
   const { data: roles = [], isLoading, error } = useQuery({
     queryKey: ['/api/roles'],
@@ -23,10 +39,161 @@ export default function RoleManagementSimple() {
     refetchOnMount: true,
   });
 
+  // Buscar permissões disponíveis
+  const { data: allPermissions = [] } = useQuery({
+    queryKey: ['/api/permissions'],
+    staleTime: 0,
+    cacheTime: 0,
+  });
+
   console.log('=== SIMPLE ROLE MANAGEMENT ===');
   console.log('Roles:', roles);
+  console.log('Permissions:', allPermissions);
   console.log('Loading:', isLoading);
   console.log('Error:', error);
+
+  // Mutations para CRUD de roles
+  const createRoleMutation = useMutation({
+    mutationFn: async (newRole: { name: string; description: string; permissions: string[] }) => {
+      return apiRequest('/api/permissions/roles', {
+        method: 'POST',
+        body: JSON.stringify(newRole),
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roles'] });
+      setIsCreateDialogOpen(false);
+      resetForm();
+      toast({
+        title: 'Sucesso',
+        description: 'Função criada com sucesso!',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao criar função',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      return apiRequest(`/api/permissions/roles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roles'] });
+      setEditingRole(null);
+      resetForm();
+      toast({
+        title: 'Sucesso',
+        description: 'Função atualizada com sucesso!',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao atualizar função',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteRoleMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/permissions/roles/${id}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/roles'] });
+      toast({
+        title: 'Sucesso',
+        description: 'Função excluída com sucesso!',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao excluir função',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Helper functions
+  const resetForm = () => {
+    setRoleName('');
+    setRoleDescription('');
+    setSelectedPermissions([]);
+  };
+
+  const startEdit = (role: Role) => {
+    setEditingRole(role);
+    setRoleName(role.name);
+    setRoleDescription(role.description);
+    // TODO: Load role permissions
+    setSelectedPermissions([]);
+  };
+
+  const handleCreateRole = () => {
+    if (!roleName.trim()) {
+      toast({
+        title: 'Erro',
+        description: 'Nome da função é obrigatório',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    createRoleMutation.mutate({
+      name: roleName,
+      description: roleDescription,
+      permissions: selectedPermissions,
+    });
+  };
+
+  const handleUpdateRole = () => {
+    if (!editingRole) return;
+
+    updateRoleMutation.mutate({
+      id: editingRole.id,
+      updates: {
+        name: roleName,
+        description: roleDescription,
+        permissions: selectedPermissions,
+      },
+    });
+  };
+
+  const handleDeleteRole = (role: Role) => {
+    if (role.isSystem) {
+      toast({
+        title: 'Erro',
+        description: 'Não é possível excluir funções do sistema',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (confirm(`Tem certeza que deseja excluir a função "${role.name}"?`)) {
+      deleteRoleMutation.mutate(role.id);
+    }
+  };
+
+  const handlePermissionToggle = (permissionId: string) => {
+    setSelectedPermissions(prev => 
+      prev.includes(permissionId)
+        ? prev.filter(id => id !== permissionId)
+        : [...prev, permissionId]
+    );
+  };
 
   const getRoleColor = (roleId: string) => {
     switch (roleId) {
@@ -76,9 +243,16 @@ export default function RoleManagementSimple() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Configuração de Funções</h1>
-        <p className="text-gray-600 mt-2">Gerencie funções e permissões do sistema de usuários</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Configuração de Funções</h1>
+          <p className="text-gray-600 mt-2">Gerencie funções e permissões do sistema de usuários</p>
+        </div>
+        
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Função
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -106,6 +280,26 @@ export default function RoleManagementSimple() {
                       {role.description || 'Sem descrição'}
                     </CardDescription>
                   </div>
+                  
+                  {!role.isSystem && (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startEdit(role)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteRole(role)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               
@@ -173,6 +367,142 @@ export default function RoleManagementSimple() {
           </div>
         </div>
       )}
+
+      {/* Modal de Criação de Função */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nova Função</DialogTitle>
+            <DialogDescription>
+              Crie uma nova função do sistema com permissões específicas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="create-name">Nome da Função</Label>
+              <Input
+                id="create-name"
+                value={roleName}
+                onChange={(e) => setRoleName(e.target.value)}
+                placeholder="Ex: Gerente de TI"
+              />
+            </div>
+            <div>
+              <Label htmlFor="create-description">Descrição</Label>
+              <Textarea
+                id="create-description"
+                value={roleDescription}
+                onChange={(e) => setRoleDescription(e.target.value)}
+                placeholder="Descreva as responsabilidades desta função..."
+              />
+            </div>
+            
+            <div>
+              <Label>Permissões</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 max-h-60 overflow-y-auto border rounded p-3">
+                {allPermissions.map((permission: any) => (
+                  <div key={permission.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`perm-${permission.id}`}
+                      checked={selectedPermissions.includes(permission.id)}
+                      onCheckedChange={() => handlePermissionToggle(permission.id)}
+                    />
+                    <Label htmlFor={`perm-${permission.id}`} className="text-sm">
+                      {permission.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  resetForm();
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleCreateRole}
+                disabled={createRoleMutation.isPending}
+              >
+                {createRoleMutation.isPending ? 'Criando...' : 'Criar Função'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Edição de Função */}
+      <Dialog open={!!editingRole} onOpenChange={() => setEditingRole(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Função: {editingRole?.name}</DialogTitle>
+            <DialogDescription>
+              Modifique o nome, descrição e permissões da função.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Nome da Função</Label>
+              <Input
+                id="edit-name"
+                value={roleName}
+                onChange={(e) => setRoleName(e.target.value)}
+                placeholder="Ex: Gerente de TI"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-description">Descrição</Label>
+              <Textarea
+                id="edit-description"
+                value={roleDescription}
+                onChange={(e) => setRoleDescription(e.target.value)}
+                placeholder="Descreva as responsabilidades desta função..."
+              />
+            </div>
+            
+            <div>
+              <Label>Permissões</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 max-h-60 overflow-y-auto border rounded p-3">
+                {allPermissions.map((permission: any) => (
+                  <div key={permission.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-perm-${permission.id}`}
+                      checked={selectedPermissions.includes(permission.id)}
+                      onCheckedChange={() => handlePermissionToggle(permission.id)}
+                    />
+                    <Label htmlFor={`edit-perm-${permission.id}`} className="text-sm">
+                      {permission.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingRole(null);
+                  resetForm();
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleUpdateRole}
+                disabled={updateRoleMutation.isPending}
+              >
+                {updateRoleMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

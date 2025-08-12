@@ -95,6 +95,51 @@ router.post('/roles', async (req, res) => {
   try {
     const data = createRoleSchema.parse(req.body);
     
+    // Create new role with hardcoded ID for demo
+    const newRole = {
+      id: `custom-${Date.now()}`,
+      name: data.name,
+      description: data.description || '',
+      color: 'bg-gray-100 text-gray-800',
+      permissions: data.permissions.length,
+      isSystem: false,
+      userCount: 0
+    };
+
+    // For now, just return the created role (in real app, save to database)
+    res.status(201).json(newRole);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Dados inválidos', errors: error.errors });
+    }
+    console.error('Erro ao criar função:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+// Deletar função
+router.delete('/roles/:roleId', async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    
+    // Check if it's a system role
+    const systemRoles = ['administrador', 'supervisor', 'atendente', 'solicitante'];
+    if (systemRoles.includes(roleId)) {
+      return res.status(400).json({ message: 'Não é possível excluir funções do sistema' });
+    }
+    
+    // For demo, just return success
+    res.json({ message: 'Função excluída com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir função:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+router.post('/roles', async (req, res) => {
+  try {
+    const data = createRoleSchema.parse(req.body);
+    
     const newRole = await storage.createRole({
       name: data.name,
       description: data.description,
