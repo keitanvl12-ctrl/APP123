@@ -41,12 +41,12 @@ export default function RoleManagement() {
 
   // Buscar funções
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
-    queryKey: ['/api/permissions/roles'],
+    queryKey: ['/api/roles'],
   });
 
   // Buscar todas as permissões disponíveis
   const { data: allPermissions = [], isLoading: permissionsLoading } = useQuery({
-    queryKey: ['/api/permissions/all'],
+    queryKey: ['/api/permissions'],
   });
 
   // Mutation para criar função
@@ -282,50 +282,110 @@ export default function RoleManagement() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {roles.map((role: SystemRole) => (
-            <Card key={role.id} className="relative">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {role.name}
-                      {role.isSystemRole && (
-                        <Badge variant="secondary">Sistema</Badge>
-                      )}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {role.description || 'Sem descrição'}
-                    </CardDescription>
+          {roles.map((role: any) => {
+            // Get role color classes
+            const getRoleColor = (roleId: string) => {
+              switch (roleId) {
+                case 'administrador': return 'border-purple-200 bg-purple-50';
+                case 'supervisor': return 'border-blue-200 bg-blue-50';
+                case 'atendente': return 'border-yellow-200 bg-yellow-50';
+                case 'solicitante': return 'border-green-200 bg-green-50';
+                default: return 'border-gray-200 bg-gray-50';
+              }
+            };
+
+            const getBadgeColor = (roleId: string) => {
+              switch (roleId) {
+                case 'administrador': return 'bg-purple-100 text-purple-800';
+                case 'supervisor': return 'bg-blue-100 text-blue-800';
+                case 'atendente': return 'bg-yellow-100 text-yellow-800';
+                case 'solicitante': return 'bg-green-100 text-green-800';
+                default: return 'bg-gray-100 text-gray-800';
+              }
+            };
+
+            return (
+              <Card key={role.id} className={`relative ${getRoleColor(role.id)}`}>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${getBadgeColor(role.id)} opacity-80`}></div>
+                        {role.name}
+                        <Badge variant="secondary" className="ml-2">
+                          {role.userCount} usuário(s)
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        {role.description || 'Sem descrição'}
+                      </CardDescription>
+                    </div>
+                    
+                    {!role.isSystem && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startEdit(role)}
+                        className="ml-2"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  
-                  {!role.isSystemRole && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => startEdit(role)}
-                      className="ml-2"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              
-              <CardContent>
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                  <Users className="h-4 w-4" />
-                  {role.userCount} usuário(s)
-                </div>
+                </CardHeader>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Settings className="h-4 w-4" />
-                    Permissões: {role.permissions?.length || 0}
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Settings className="h-4 w-4" />
+                      Permissões: {role.permissions}
+                    </div>
+                    
+                    {/* Exibir algumas permissões principais baseadas no role */}
+                    <div className="space-y-1">
+                      {role.id === 'administrador' && (
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="text-xs">Criar Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">Ver Próprios Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">Ver Todos os Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">+13 mais</Badge>
+                        </div>
+                      )}
+                      
+                      {role.id === 'supervisor' && (
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="text-xs">Criar Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">Ver Todos os Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">Editar Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">+6 mais</Badge>
+                        </div>
+                      )}
+
+                      {role.id === 'atendente' && (
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="text-xs">Criar Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">Ver Tickets do Departamento</Badge>
+                          <Badge variant="outline" className="text-xs">Editar Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">+3 mais</Badge>
+                        </div>
+                      )}
+
+                      {role.id === 'solicitante' && (
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="text-xs">Criar Tickets</Badge>
+                          <Badge variant="outline" className="text-xs">Ver Próprios Tickets</Badge>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="text-xs text-gray-500 mt-2">
+                      Função do Sistema
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Dialog de Edição */}
