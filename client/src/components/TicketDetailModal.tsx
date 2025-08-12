@@ -115,12 +115,17 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
   });
 
   // Buscar valores dos campos customizados do ticket
-  const { data: customFieldValues, isLoading: customFieldsLoading } = useQuery<any[]>({
+  const { data: customFieldValues, isLoading: customFieldsLoading, error: customFieldsError } = useQuery<any[]>({
     queryKey: ['/api/tickets', ticketId, 'custom-fields'],
     enabled: isOpen && !!ticketId,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
-  console.log("Custom field values:", customFieldValues);
+  console.log("🔍 Custom field values for ticket", ticketId, ":", customFieldValues);
+  console.log("🔍 Query enabled:", isOpen && !!ticketId);
+  console.log("🔍 Loading state:", customFieldsLoading);
+  console.log("🔍 Error state:", customFieldsError);
 
   if (ticketLoading) {
     return (
@@ -376,16 +381,25 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
             </div>
           </div>
 
-          {/* Custom Fields from Category */}
-          {customFieldValues && customFieldValues.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold flex items-center">
-                  <FileText className="w-5 h-5 mr-2" />
-                  Informações Específicas da Categoria
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          {/* Custom Fields from Category - Debug Version */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold flex items-center">
+                <FileText className="w-5 h-5 mr-2" />
+                Informações Específicas da Categoria
+                <span className="ml-2 text-xs bg-blue-100 px-2 py-1 rounded">
+                  {customFieldValues ? `${customFieldValues.length} campos` : 'Carregando...'}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {customFieldsLoading && (
+                <div className="text-sm text-gray-500">Carregando campos customizados...</div>
+              )}
+              {!customFieldsLoading && (!customFieldValues || customFieldValues.length === 0) && (
+                <div className="text-sm text-gray-500">Nenhum campo específico da categoria encontrado.</div>
+              )}
+              {customFieldValues && customFieldValues.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {customFieldValues.map((fieldValue: any) => (
                     <div key={fieldValue.id} className="space-y-1">
@@ -400,9 +414,16 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+              {/* Debug info */}
+              <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
+                <strong>Debug:</strong> Ticket ID: {ticketId} | 
+                Loading: {customFieldsLoading ? 'true' : 'false'} | 
+                Error: {customFieldsError ? String(customFieldsError) : 'none'} |
+                Data: {customFieldValues ? JSON.stringify(customFieldValues, null, 2) : 'null'}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Form Data Details - Show parsed form data for debugging */}
           {parsedFormData && Object.keys(parsedFormData).length > 0 && (

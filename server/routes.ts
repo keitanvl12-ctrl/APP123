@@ -824,7 +824,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get custom field values for a ticket
   app.get("/api/tickets/:ticketId/custom-fields", async (req, res) => {
     try {
+      console.log("🔍 API: Fetching custom fields for ticket:", req.params.ticketId);
       const customFieldValues = await storage.getCustomFieldValuesByTicket(req.params.ticketId);
+      console.log("🔍 API: Found custom field values:", customFieldValues);
       res.json(customFieldValues);
     } catch (error) {
       console.error("Error fetching custom field values:", error);
