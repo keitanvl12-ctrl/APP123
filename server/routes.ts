@@ -104,18 +104,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authReq = req as AuthenticatedRequest;
       const user = authReq.user;
       
+      // Para administradores, buscar TODOS os tickets sem filtros
+      if (user && (user.role === 'admin' || user.role === 'administrador')) {
+        console.log('Admin user requesting all tickets');
+        const tickets = await storage.getAllTickets();
+        console.log(`Admin got ${tickets.length} tickets`);
+        res.json(tickets);
+        return;
+      }
+      
       let filters: any = {
         createdBy: req.query.createdBy as string,
         departmentId: req.query.departmentId as string
       };
 
-      // Apply hierarchy-based filtering
+      // Apply hierarchy-based filtering for non-admin users
       if (user) {
         const userHierarchy = user.hierarchy || user.role;
         const userId = user.userId || user.id;
         
-        if (userHierarchy === 'colaborador') {
-          // Colaboradores veem seus próprios tickets + tickets não atribuídos do departamento
+        if (userHierarchy === 'colaborador' || userHierarchy === 'solicitante' || userHierarchy === 'atendente') {
+          // Usuários básicos veem seus próprios tickets + tickets não atribuídos do departamento
           const userRecord = await storage.getUser(userId);
           if (userRecord?.departmentId) {
             filters.colaboradorFilter = {
@@ -135,10 +144,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             delete filters.createdBy;
           }
         }
-        // Administradores veem todos os tickets (sem filtros adicionais)
       }
       
-      const tickets = await storage.getTicketsByUser(user?.id || "mock-admin-id");
+      const tickets = await storage.getTicketsByUser(user?.id || "mock-user-id");
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
