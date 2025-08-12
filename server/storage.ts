@@ -170,6 +170,22 @@ export class DatabaseStorage implements IStorage {
         role: "atendente",
       }).returning();
 
+      const [colaborador1] = await db.insert(users).values({
+        username: "joao.silva",
+        password: "senha123",
+        name: "João Silva",
+        email: "joao.silva@empresa.com",
+        role: "colaborador",
+      }).returning();
+
+      const [colaborador2] = await db.insert(users).values({
+        username: "luciana.lima",
+        password: "senha123",
+        name: "Luciana Lima",
+        email: "luciana.lima@empresa.com",
+        role: "colaborador",
+      }).returning();
+
       // Create demo departments
       const [tiDept] = await db.insert(departments).values({
         name: "TI",
