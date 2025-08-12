@@ -2542,45 +2542,44 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
-  // Permissions and Roles implementation
+  // Permissions and Roles implementation - simplified
   async getUserPermissions(userId: string): Promise<{
     roleId: string;
     roleName: string;
-    permissions: SystemPermission[];
+    permissions: any[];
     departmentId?: string;
   }> {
-    const user = await db.select()
-      .from(users)
-      .leftJoin(systemRoles, eq(users.roleId, systemRoles.id))
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!user.length || !user[0].system_roles) {
-      throw new Error('Usuário ou função não encontrada');
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error('Usuário não encontrado');
     }
 
-    const permissions = await db.select({
-      permission: systemPermissions
-    })
-      .from(rolePermissions)
-      .innerJoin(systemPermissions, eq(rolePermissions.permissionId, systemPermissions.id))
-      .where(eq(rolePermissions.roleId, user[0].system_roles.id));
+    // Return basic role info based on user role
+    const roleMap = {
+      'admin': { id: 'administrador', name: 'Administrador' },
+      'supervisor': { id: 'supervisor', name: 'Supervisor' },
+      'atendente': { id: 'atendente', name: 'Atendente' },
+      'solicitante': { id: 'solicitante', name: 'Solicitante' }
+    };
+
+    const roleInfo = roleMap[user.role as keyof typeof roleMap] || { id: 'solicitante', name: 'Solicitante' };
 
     return {
-      roleId: user[0].system_roles.id,
-      roleName: user[0].system_roles.name,
-      permissions: permissions.map(rp => rp.permission),
-      departmentId: user[0].users.departmentId || undefined
+      roleId: roleInfo.id,
+      roleName: roleInfo.name,
+      permissions: [], // Simplified - no complex permissions for now
+      departmentId: user.departmentId || undefined
     };
   }
 
-  async getSystemRoles(): Promise<SystemRole[]> {
-    return db.select().from(systemRoles).orderBy(systemRoles.name);
+  async getSystemRoles(): Promise<any[]> {
+    // Return hardcoded system roles for now
+    return this.getAllRoles();
   }
 
-  async getSystemRoleById(id: string): Promise<SystemRole | undefined> {
-    const roles = await db.select().from(systemRoles).where(eq(systemRoles.id, id)).limit(1);
-    return roles[0];
+  async getSystemRoleById(id: string): Promise<any | undefined> {
+    const roles = await this.getAllRoles();
+    return roles.find(role => role.id === id);
   }
 
   async getRolePermissions(roleId: string): Promise<SystemPermission[]> {

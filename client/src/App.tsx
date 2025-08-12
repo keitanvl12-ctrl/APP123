@@ -35,7 +35,7 @@ import SLAConfiguration from "@/pages/SLAConfiguration";
 import ConfigurationPage from "@/pages/ConfigurationPage";
 import PermissionSettings from "@/pages/PermissionSettings";
 import HierarchyManagement from "@/pages/HierarchyManagement";
-import RolesManagement from "@/pages/RoleManagementNew";
+import RolesManagement from "@/pages/RoleManagementSimple";
 
 import HierarchyDemo from "@/components/HierarchyDemo";
 import { PermissionGuard, AdminOnly, SupervisorOnly } from "@/components/PermissionGuard";
