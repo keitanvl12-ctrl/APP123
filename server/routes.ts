@@ -383,14 +383,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tickets/:ticketId/comments", async (req, res) => {
     try {
-      const validatedData = insertCommentSchema.parse({
+      console.log("POST /api/tickets/:ticketId/comments - Request body:", req.body);
+      console.log("POST /api/tickets/:ticketId/comments - Ticket ID:", req.params.ticketId);
+      
+      const currentUser = await getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const commentData = {
         ...req.body,
         ticketId: req.params.ticketId,
-      });
+        userId: currentUser.id,
+      };
+      
+      console.log("POST /api/tickets/:ticketId/comments - Comment data:", commentData);
+      
+      const validatedData = insertCommentSchema.parse(commentData);
+      console.log("POST /api/tickets/:ticketId/comments - Validated data:", validatedData);
+      
       const comment = await storage.createComment(validatedData);
+      console.log("POST /api/tickets/:ticketId/comments - Created comment:", comment);
+      
       res.status(201).json(comment);
     } catch (error) {
+      console.error("POST /api/tickets/:ticketId/comments - Error:", error);
       if (error instanceof z.ZodError) {
+        console.error("POST /api/tickets/:ticketId/comments - Validation errors:", error.errors);
         return res.status(400).json({ 
           message: "Validation error", 
           errors: error.errors 

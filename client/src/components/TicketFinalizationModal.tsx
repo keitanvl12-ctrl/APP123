@@ -1,41 +1,35 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import {
-  CheckCircle, Clock, FileText, AlertTriangle, XCircle, AlertCircle
-} from 'lucide-react';
+import type { Ticket, Comment } from '@/../../shared/schema';
 
 interface TicketFinalizationModalProps {
-  ticket: any;
   isOpen: boolean;
   onClose: () => void;
-  comments?: any[];
-  users?: any[];
+  ticket: Ticket;
+  comments?: Comment[];
 }
 
-export function TicketFinalizationModal({ 
-  ticket, 
-  isOpen, 
-  onClose, 
-  comments = [], 
-  users = [] 
-}: TicketFinalizationModalProps) {
-  const [finalizationData, setFinalizationData] = useState({
+interface FinalizationData {
+  resolutionComment: string;
+  equipmentRetired: string;
+  materialsUsed: string;
+}
+
+function TicketFinalizationModal({ isOpen, onClose, ticket, comments }: TicketFinalizationModalProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [finalizationData, setFinalizationData] = useState<FinalizationData>({
     resolutionComment: '',
     equipmentRetired: '',
     materialsUsed: ''
   });
-  
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Função para calcular horas trabalhadas (tempo ativo - tempo pausado)
   const calculateWorkedHours = () => {
@@ -77,6 +71,12 @@ export function TicketFinalizationModal({
         pausedTime += now.getTime() - pauseStart;
       }
       
+      // Se ticket tem pausedAt definido (novo sistema de pausa)
+      if (ticket.pausedAt && ticket.status === 'on_hold') {
+        const pausedAtTime = new Date(ticket.pausedAt).getTime();
+        pausedTime = now.getTime() - pausedAtTime;
+      }
+      
       totalActiveTime -= pausedTime;
     }
     
@@ -90,7 +90,7 @@ export function TicketFinalizationModal({
   const handleFinalize = async () => {
     if (!finalizationData.resolutionComment.trim()) {
       toast({
-        title: "Campo obrigatório",
+        title: "❌ Campo obrigatório",
         description: "O comentário de resolução é obrigatório.",
         variant: "destructive",
       });
@@ -98,26 +98,9 @@ export function TicketFinalizationModal({
     }
 
     try {
-      // Criar comentário detalhado de finalização
-      const workedHours = calculateWorkedHours();
-      const finalizationComment = `🔧 FINALIZAÇÃO DO TICKET
-
-**Resolução:** ${finalizationData.resolutionComment}
-
-**Tempo Trabalhado:** ${workedHours} (tempo efetivo, excluindo pausas)
-
-${finalizationData.equipmentRetired ? `**Equipamentos Retirados:**
-${finalizationData.equipmentRetired}
-
-` : ''}${finalizationData.materialsUsed ? `**Materiais Utilizados:**
-${finalizationData.materialsUsed}
-
-` : ''}**Data de Finalização:** ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-**Técnico:** ${users?.find(u => u.id === ticket.assignedTo)?.name || 'Sistema'}`;
-
       // Adicionar comentário de finalização
       await apiRequest(`/api/tickets/${ticket.id}/comments`, 'POST', {
-        content: finalizationComment
+        content: finalizationData.resolutionComment
       });
 
       // Atualizar status para resolvido
@@ -159,17 +142,28 @@ ${finalizationData.materialsUsed}
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="text-lg font-medium">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="border-b pb-4">
+          <DialogTitle className="text-xl font-semibold text-gray-900 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
             Finalizar Ticket {ticket.ticketNumber}
           </DialogTitle>
+          <p className="text-sm text-gray-500 mt-2">
+            Documente a resolução e finalize o atendimento
+          </p>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-6 py-4">
           {/* Comentário de Resolução */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
+          <div className="space-y-3">
+            <Label className="text-sm font-medium text-gray-900 flex items-center gap-2">
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4 4z" />
+              </svg>
               Comentário de Resolução *
             </Label>
             <Textarea
@@ -178,29 +172,39 @@ ${finalizationData.materialsUsed}
                 ...finalizationData,
                 resolutionComment: e.target.value
               })}
-              placeholder="Descreva como o problema foi resolvido..."
-              className="min-h-[100px] resize-none"
+              placeholder="Descreva detalhadamente como o problema foi resolvido, quais passos foram tomados e qual foi o resultado final..."
+              className="min-h-[120px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
               required
             />
           </div>
 
           {/* Tempo Trabalhado */}
-          <div className="border rounded-lg p-4 bg-gray-50">
+          <div className="border border-gray-200 rounded-xl p-5 bg-gradient-to-r from-blue-50 to-indigo-50">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Tempo trabalhado</p>
-                <p className="text-xs text-gray-500">Calculado automaticamente</p>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-base font-medium text-gray-900">Tempo trabalhado</p>
+                  <p className="text-sm text-gray-600">Calculado automaticamente</p>
+                </div>
               </div>
-              <span className="text-lg font-mono font-semibold">
+              <span className="text-3xl font-mono font-bold text-blue-700 bg-white px-4 py-2 rounded-lg shadow-sm border">
                 {calculateWorkedHours()}
               </span>
             </div>
           </div>
 
           {/* Equipamentos e Materiais */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3 p-4 border border-orange-200 rounded-xl bg-orange-50">
+              <Label className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
                 Equipamentos Retirados
               </Label>
               <Textarea
@@ -209,13 +213,16 @@ ${finalizationData.materialsUsed}
                   ...finalizationData,
                   equipmentRetired: e.target.value
                 })}
-                placeholder="Lista de equipamentos..."
-                className="min-h-[80px] resize-none"
+                placeholder="Ex: Monitor Dell 24&quot;, Teclado mecânico, Mouse óptico..."
+                className="min-h-[100px] resize-none border-orange-200 bg-white focus:border-orange-500 focus:ring-orange-500"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
+            <div className="space-y-3 p-4 border border-purple-200 rounded-xl bg-purple-50">
+              <Label className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
                 Materiais Utilizados
               </Label>
               <Textarea
@@ -224,16 +231,17 @@ ${finalizationData.materialsUsed}
                   ...finalizationData,
                   materialsUsed: e.target.value
                 })}
-                placeholder="Lista de materiais..."
-                className="min-h-[80px] resize-none"
+                placeholder="Ex: Cabo HDMI 2m, Parafusos M3, Pasta térmica..."
+                className="min-h-[100px] resize-none border-purple-200 bg-white focus:border-purple-500 focus:ring-purple-500"
               />
             </div>
           </div>
 
           {/* Botões */}
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
             <Button
               variant="outline"
+              className="px-6 py-2 border-gray-300 text-gray-700 hover:bg-gray-50"
               onClick={() => {
                 onClose();
                 setFinalizationData({
@@ -248,7 +256,11 @@ ${finalizationData.materialsUsed}
             <Button
               onClick={handleFinalize}
               disabled={!finalizationData.resolutionComment.trim()}
+              className="px-8 py-2 bg-green-600 hover:bg-green-700 text-white font-medium flex items-center gap-2"
             >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
               Finalizar
             </Button>
           </div>
