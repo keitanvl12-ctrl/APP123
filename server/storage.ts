@@ -1173,8 +1173,31 @@ export class DatabaseStorage implements IStorage {
         ? new Date(ticket.resolvedAt) 
         : now;
       
-      // Buscar registros de pausa para este ticket
-      const pauseRecords = await this.getTicketPauseRecords(ticket.id);
+      // Buscar registros de pausa para este ticket - SIMPLIFICADO TEMPORARIAMENTE
+      let pauseRecords = [];
+      
+      // Se o ticket está pausado, criar registro baseado nos campos do ticket
+      if (ticket.status === 'on_hold' && ticket.pausedAt) {
+        let duration = 2; // Default 2 horas
+        if (ticket.pauseReason) {
+          const durationMatch = ticket.pauseReason.match(/(\d+)\s*horas?/i);
+          if (durationMatch) {
+            duration = parseInt(durationMatch[1]);
+          }
+        }
+        
+        pauseRecords = [{
+          id: `pause-${ticket.id}`,
+          ticketId: ticket.id,
+          pausedAt: ticket.pausedAt.toISOString(),
+          reason: ticket.pauseReason || 'Ticket pausado',
+          pausedBy: 'system',
+          expectedReturnAt: new Date(new Date(ticket.pausedAt).getTime() + duration * 60 * 60 * 1000).toISOString(),
+          duration: duration
+        }];
+        
+        console.log(`⏸️ TICKET PAUSADO ${ticket.ticketNumber}: ${duration}h desde ${ticket.pausedAt}`);
+      }
       
       // Calcular tempo total pausado em milissegundos
       let totalPausedMilliseconds = 0;
@@ -2415,52 +2438,45 @@ export class DatabaseStorage implements IStorage {
   // Pause Management methods
   async getTicketPauseRecords(ticketId: string): Promise<any[]> {
     try {
-      // Get pause records from comments with type "pause" and "resume"
-      const pauseComments = await db
-        .select({
-          id: comments.id,
-          content: comments.content,
-          createdAt: comments.createdAt,
-          userId: comments.userId,
-          type: comments.type
-        })
-        .from(comments)
-        .where(and(
-          eq(comments.ticketId, ticketId),
-          or(eq(comments.type, 'pause'), eq(comments.type, 'resume'))
-        ))
-        .orderBy(comments.createdAt);
-
-      const pauseRecords = [];
-      let currentPause = null;
-
-      for (const comment of pauseComments) {
-        if (comment.type === 'pause') {
-          // Extract duration from pause comment content
-          const durationMatch = comment.content.match(/(\d+)\s*horas?/i);
-          const duration = durationMatch ? parseInt(durationMatch[1]) : 1;
-          
-          currentPause = {
-            id: comment.id,
-            ticketId,
-            pausedAt: comment.createdAt.toISOString(),
-            reason: comment.content,
-            pausedBy: comment.userId,
-            expectedReturnAt: new Date(new Date(comment.createdAt).getTime() + duration * 60 * 60 * 1000).toISOString()
-          };
-        } else if (comment.type === 'resume' && currentPause) {
-          currentPause.resumedAt = comment.createdAt.toISOString();
-          pauseRecords.push(currentPause);
-          currentPause = null;
+      console.log(`🔍 Getting pause records for ticket: ${ticketId}`);
+      
+      // For now, create simple pause records based on ticket status
+      const ticket = await this.getTicket(ticketId);
+      if (!ticket) {
+        console.log(`❌ Ticket ${ticketId} not found`);
+        return [];
+      }
+      
+      // If ticket is currently paused (on_hold status), simulate a pause record
+      if (ticket.status === 'on_hold' && ticket.pausedAt) {
+        console.log(`⏸️ Ticket is currently paused since ${ticket.pausedAt}`);
+        
+        // Extract duration from pause reason if available
+        let duration = 2; // Default 2 hours
+        if (ticket.pauseReason) {
+          const durationMatch = ticket.pauseReason.match(/(\d+)\s*horas?/i);
+          if (durationMatch) {
+            duration = parseInt(durationMatch[1]);
+          }
         }
+        
+        const pauseRecord = {
+          id: `pause-${ticketId}`,
+          ticketId,
+          pausedAt: ticket.pausedAt.toISOString(),
+          reason: ticket.pauseReason || 'Ticket pausado',
+          pausedBy: 'system',
+          expectedReturnAt: new Date(new Date(ticket.pausedAt).getTime() + duration * 60 * 60 * 1000).toISOString(),
+          duration: duration
+        };
+        
+        console.log(`✅ Created pause record: ${duration}h since ${ticket.pausedAt}`);
+        return [pauseRecord];
       }
-
-      // If there's an unresolved pause, add it
-      if (currentPause) {
-        pauseRecords.push(currentPause);
-      }
-
-      return pauseRecords;
+      
+      console.log(`✅ No active pause for ticket ${ticketId}`);
+      return [];
+      
     } catch (error) {
       console.error('Error getting pause records:', error);
       return [];
