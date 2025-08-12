@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, tickets, comments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues, permissions } from "@shared/schema";
+import { users, tickets, comments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues, systemRoles, systemPermissions, rolePermissions } from "@shared/schema";
 import { eq, desc, count, sql, and, gte, lte, or, isNull, ne } from "drizzle-orm";
 import {
   type User,
@@ -27,8 +27,12 @@ import {
   type InsertCustomField,
   type CustomFieldValue,
   type InsertCustomFieldValue,
-  type Permission,
-  type InsertPermission,
+  type SystemRole,
+  type SystemPermission,
+  type RolePermission,
+  type InsertSystemRole,
+  type InsertSystemPermission,
+  type InsertRolePermission,
 } from "@shared/schema";
 import { nanoid } from "nanoid";
 import { format, subDays, startOfDay, endOfDay, differenceInHours } from "date-fns";
@@ -73,6 +77,16 @@ export interface IStorage {
   createDepartment(department: InsertDepartment): Promise<Department>;
   updateDepartment(id: string, updates: Partial<InsertDepartment>): Promise<Department>;
   deleteDepartment(id: string): Promise<boolean>;
+
+  // Permissions & Roles
+  getUserPermissions(userId: string): Promise<SystemPermission[]>;
+  getAllRoles(): Promise<SystemRole[]>;
+  getRoleWithPermissions(roleId: string): Promise<SystemRole & { permissions: SystemPermission[] } | null>;
+  getAllPermissions(): Promise<SystemPermission[]>;
+  createRole(role: InsertSystemRole): Promise<SystemRole>;
+  updateRole(roleId: string, updates: Partial<InsertSystemRole>): Promise<SystemRole>;
+  assignPermissionsToRole(roleId: string, permissionCodes: string[]): Promise<void>;
+  updateRolePermissions(roleId: string, permissionCodes: string[]): Promise<void>;
 
   // Configuration
   getAllStatusConfigs(): Promise<StatusConfig[]>;
@@ -2543,6 +2557,155 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
+  // Permissions and Roles implementation
+  async getUserPermissions(userId: string): Promise<{
+    roleId: string;
+    roleName: string;
+    permissions: SystemPermission[];
+    departmentId?: string;
+  }> {
+    const user = await db.select()
+      .from(users)
+      .leftJoin(systemRoles, eq(users.roleId, systemRoles.id))
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user.length || !user[0].system_roles) {
+      throw new Error('Usuário ou função não encontrada');
+    }
+
+    const permissions = await db.select({
+      permission: systemPermissions
+    })
+      .from(rolePermissions)
+      .innerJoin(systemPermissions, eq(rolePermissions.permissionId, systemPermissions.id))
+      .where(eq(rolePermissions.roleId, user[0].system_roles.id));
+
+    return {
+      roleId: user[0].system_roles.id,
+      roleName: user[0].system_roles.name,
+      permissions: permissions.map(rp => rp.permission),
+      departmentId: user[0].users.departmentId || undefined
+    };
+  }
+
+  async getSystemRoles(): Promise<SystemRole[]> {
+    return db.select().from(systemRoles).orderBy(systemRoles.name);
+  }
+
+  async getSystemRoleById(id: string): Promise<SystemRole | undefined> {
+    const roles = await db.select().from(systemRoles).where(eq(systemRoles.id, id)).limit(1);
+    return roles[0];
+  }
+
+  async getRolePermissions(roleId: string): Promise<SystemPermission[]> {
+    const permissions = await db.select({
+      permission: systemPermissions
+    })
+      .from(rolePermissions)
+      .innerJoin(systemPermissions, eq(rolePermissions.permissionId, systemPermissions.id))
+      .where(eq(rolePermissions.roleId, roleId));
+
+    return permissions.map(p => p.permission);
+  }
+
+  async createSystemRole(data: { name: string; description?: string; permissions?: string[] }): Promise<SystemRole> {
+    const [role] = await db.insert(systemRoles).values({
+      name: data.name,
+      description: data.description,
+      isSystemRole: false,
+      userCount: 0
+    }).returning();
+
+    // Associar permissões se fornecidas
+    if (data.permissions && data.permissions.length > 0) {
+      const permissionRecords = await db.select()
+        .from(systemPermissions)
+        .where(sql`${systemPermissions.code} = ANY(${data.permissions})`);
+
+      if (permissionRecords.length > 0) {
+        await db.insert(rolePermissions).values(
+          permissionRecords.map(p => ({
+            roleId: role.id,
+            permissionId: p.id
+          }))
+        );
+      }
+    }
+
+    return role;
+  }
+
+  async updateSystemRole(id: string, data: { name?: string; description?: string; permissions?: string[] }): Promise<SystemRole> {
+    // Atualizar dados da função
+    const updates: any = {};
+    if (data.name) updates.name = data.name;
+    if (data.description !== undefined) updates.description = data.description;
+
+    const [role] = await db.update(systemRoles)
+      .set(updates)
+      .where(eq(systemRoles.id, id))
+      .returning();
+
+    // Atualizar permissões se fornecidas
+    if (data.permissions) {
+      // Remover permissões existentes
+      await db.delete(rolePermissions).where(eq(rolePermissions.roleId, id));
+
+      // Adicionar novas permissões
+      if (data.permissions.length > 0) {
+        const permissionRecords = await db.select()
+          .from(systemPermissions)
+          .where(sql`${systemPermissions.code} = ANY(${data.permissions})`);
+
+        if (permissionRecords.length > 0) {
+          await db.insert(rolePermissions).values(
+            permissionRecords.map(p => ({
+              roleId: id,
+              permissionId: p.id
+            }))
+          );
+        }
+      }
+    }
+
+    return role;
+  }
+
+  async deleteSystemRole(id: string): Promise<boolean> {
+    try {
+      // Verificar se é uma função do sistema que não pode ser deletada
+      const role = await this.getSystemRoleById(id);
+      if (!role) return false;
+
+      if (role.isSystemRole) {
+        throw new Error('Funções do sistema não podem ser deletadas');
+      }
+
+      // Verificar se há usuários usando esta função
+      const usersWithRole = await db.select({ count: count() })
+        .from(users)
+        .where(eq(users.roleId, id));
+
+      if (usersWithRole[0].count > 0) {
+        throw new Error('Não é possível deletar função que possui usuários associados');
+      }
+
+      // Deletar permissões associadas
+      await db.delete(rolePermissions).where(eq(rolePermissions.roleId, id));
+
+      // Deletar função
+      await db.delete(systemRoles).where(eq(systemRoles.id, id));
+      return true;
+    } catch (error) {
+      console.error('Erro ao deletar função:', error);
+      return false;
+    }
+  }
+
+  async getSystemPermissions(): Promise<SystemPermission[]> {
+    return db.select().from(systemPermissions).orderBy(systemPermissions.category, systemPermissions.name);
+  }
 }
 
 export const storage = new DatabaseStorage();

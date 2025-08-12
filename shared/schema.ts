@@ -6,20 +6,33 @@ import { z } from "zod";
 // Definir hierarquia de roles - ordem importa para prioridade
 export const roleEnum = pgEnum('user_role', ['solicitante', 'atendente', 'supervisor', 'administrador']);
 
-// Sistema de permissões
-export const permissions = pgTable("permissions", {
+// Sistema de funções/roles do sistema
+export const systemRoles = pgTable("system_roles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  role: text("role").notNull(), // solicitante, atendente, supervisor, administrador
-  canManageUsers: boolean("can_manage_users").default(false),
-  canViewAllTickets: boolean("can_view_all_tickets").default(false),
-  canViewDepartmentTickets: boolean("can_view_department_tickets").default(false),
-  canManageTickets: boolean("can_manage_tickets").default(false),
-  canViewReports: boolean("can_view_reports").default(false),
-  canManageSystem: boolean("can_manage_system").default(false),
-  canManageCategories: boolean("can_manage_categories").default(false),
-  canManageDepartments: boolean("can_manage_departments").default(false),
+  name: text("name").notNull().unique(), // Administrador, Supervisor, Atendente, Solicitante
+  description: text("description"),
+  isSystemRole: boolean("is_system_role").default(false), // Não pode ser editado/excluído
+  userCount: integer("user_count").default(0), // Contador de usuários com esta função
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Permissões do sistema
+export const systemPermissions = pgTable("system_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(), // criar_tickets, ver_proprios_tickets, etc.
+  name: text("name").notNull(), // Nome da permissão em português
+  description: text("description"), // Descrição detalhada
+  category: text("category").notNull(), // tickets, usuarios, departamentos, relatorios, sistema
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Relacionamento entre funções e permissões
+export const rolePermissions = pgTable("role_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").references(() => systemRoles.id).notNull(),
+  permissionId: varchar("permission_id").references(() => systemPermissions.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Departments/Workgroups table
@@ -39,7 +52,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  role: text("role").notNull().default("solicitante"), // solicitante, atendente, supervisor, administrador
+  roleId: varchar("role_id").references(() => systemRoles.id).notNull(),
   departmentId: varchar("department_id").references(() => departments.id),
   isActive: boolean("is_active").default(true).notNull(), // Para bloquear/desbloquear usuários
   isBlocked: boolean("is_blocked").default(false).notNull(), // Status de bloqueio
@@ -272,8 +285,12 @@ export type PriorityConfig = typeof priorityConfig.$inferSelect;
 export type SlaRule = typeof slaRules.$inferSelect;
 export type CustomField = typeof customFields.$inferSelect;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;
-export type Permission = typeof permissions.$inferSelect;
-export type InsertPermission = typeof permissions.$inferInsert;
+export type SystemRole = typeof systemRoles.$inferSelect;
+export type SystemPermission = typeof systemPermissions.$inferSelect;
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertSystemRole = typeof systemRoles.$inferInsert;
+export type InsertSystemPermission = typeof systemPermissions.$inferInsert;
+export type InsertRolePermission = typeof rolePermissions.$inferInsert;
 
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -1,148 +1,130 @@
 import { Router } from 'express';
 import { storage } from '../storage';
-import { AuthenticatedRequest } from '../middleware/permissionMiddleware';
+import { z } from 'zod';
 
 const router = Router();
 
-// Obter todas as permissões configuradas por função
-router.get('/api/permissions', async (req, res) => {
+// Buscar permissões do usuário atual
+router.get('/user/:userId', async (req, res) => {
   try {
-    const permissions = await storage.getAllPermissions();
+    const { userId } = req.params;
     
-    // Converter snake_case para camelCase para o frontend
-    const camelCasePermissions = permissions.map(permission => ({
-      ...permission,
-      canManageUsers: permission.canManageUsers,
-      canViewAllTickets: permission.canViewAllTickets,
-      canViewDepartmentTickets: permission.canViewDepartmentTickets,
-      canManageTickets: permission.canManageTickets,
-      canViewReports: permission.canViewReports,
-      canManageSystem: permission.canManageSystem,
-      canManageCategories: permission.canManageCategories,
-      canManageDepartments: permission.canManageDepartments,
-    }));
-    
-    res.json(camelCasePermissions);
-  } catch (error) {
-    console.error('Error fetching permissions:', error);
-    res.status(500).json({ message: 'Failed to fetch permissions' });
-  }
-});
-
-// Obter permissões de uma função específica  
-router.get('/api/permissions/:role', async (req, res) => {
-  try {
-    const { role } = req.params;
-    const permission = await storage.getPermissionByRole(role);
-    
-    if (!permission) {
-      // Retornar permissões default se não encontradas
-      const defaultPermissions = {
-        role,
-        canManageUsers: false,
-        canViewAllTickets: false,
-        canViewDepartmentTickets: false,
-        canManageTickets: false,
-        canViewReports: false,
-        canManageSystem: false,
-        canManageCategories: false,
-        canManageDepartments: false,
-      };
-      return res.json(defaultPermissions);
-    }
-    
-    // Converter snake_case para camelCase para o frontend
-    const camelCasePermission = {
-      ...permission,
-      canManageUsers: permission.canManageUsers,
-      canViewAllTickets: permission.canViewAllTickets,
-      canViewDepartmentTickets: permission.canViewDepartmentTickets,
-      canManageTickets: permission.canManageTickets,
-      canViewReports: permission.canViewReports,
-      canManageSystem: permission.canManageSystem,
-      canManageCategories: permission.canManageCategories,
-      canManageDepartments: permission.canManageDepartments,
-    };
-    
-    res.json(camelCasePermission);
-  } catch (error) {
-    console.error('Error fetching permission:', error);
-    res.status(500).json({ message: 'Failed to fetch permission' });
-  }
-});
-
-// Atualizar permissões de uma função
-router.put('/api/permissions/:role', async (req, res) => {
-  try {
-    const { role } = req.params;
-    const permissionData = req.body;
-    
-    const updatedPermission = await storage.updatePermission(role, permissionData);
-    
-    if (!updatedPermission) {
-      return res.status(404).json({ message: 'Permissão não encontrada' });
-    }
-    
-    res.json(updatedPermission);
-  } catch (error) {
-    console.error('Error updating permission:', error);
-    res.status(500).json({ message: 'Failed to update permission' });
-  }
-});
-
-// Criar nova configuração de permissão para uma função
-router.post('/api/permissions', async (req, res) => {
-  try {
-    const permissionData = req.body;
-    const newPermission = await storage.createPermission(permissionData);
-    res.status(201).json(newPermission);
-  } catch (error) {
-    console.error('Error creating permission:', error);
-    res.status(500).json({ message: 'Failed to create permission' });
-  }
-});
-
-// Obter permissões do usuário atual
-router.get('/api/auth/permissions', async (req, res) => {
-  try {
-    const authReq = req as AuthenticatedRequest;
-    
-    if (!authReq.user) {
-      return res.status(401).json({ message: 'Usuário não autenticado' });
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
-    const userRole = authReq.user.role;
-    const permission = await storage.getPermissionByRole(userRole);
-    
-    // Converter para camelCase se permissão existir
-    const formattedPermissions = permission ? {
-      canManageUsers: permission.canManageUsers,
-      canViewAllTickets: permission.canViewAllTickets,
-      canViewDepartmentTickets: permission.canViewDepartmentTickets,
-      canManageTickets: permission.canManageTickets,
-      canViewReports: permission.canViewReports,
-      canManageSystem: permission.canManageSystem,
-      canManageCategories: permission.canManageCategories,
-      canManageDepartments: permission.canManageDepartments,
-    } : {
-      canManageUsers: false,
-      canViewAllTickets: false,
-      canViewDepartmentTickets: false,
-      canManageTickets: false,
-      canViewReports: false,
-      canManageSystem: false,
-      canManageCategories: false,
-      canManageDepartments: false,
-    };
+    const permissions = await storage.getUserPermissions(userId);
     
     res.json({
-      role: userRole,
-      permissions: formattedPermissions,
-      user: authReq.user
+      permissions,
+      role: user.roleId,
+      departmentId: user.departmentId,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar permissões do usuário:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+// Buscar todas as funções do sistema
+router.get('/roles', async (req, res) => {
+  try {
+    const roles = await storage.getAllRoles();
+    res.json(roles);
+  } catch (error) {
+    console.error('Erro ao buscar funções:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+// Buscar detalhes de uma função específica com permissões
+router.get('/roles/:roleId', async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const roleDetails = await storage.getRoleWithPermissions(roleId);
+    
+    if (!roleDetails) {
+      return res.status(404).json({ message: 'Função não encontrada' });
+    }
+    
+    res.json(roleDetails);
+  } catch (error) {
+    console.error('Erro ao buscar detalhes da função:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+// Buscar todas as permissões disponíveis
+router.get('/all', async (req, res) => {
+  try {
+    const permissions = await storage.getAllPermissions();
+    res.json(permissions);
+  } catch (error) {
+    console.error('Erro ao buscar permissões:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+// Criar nova função
+const createRoleSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  permissions: z.array(z.string()),
+});
+
+router.post('/roles', async (req, res) => {
+  try {
+    const data = createRoleSchema.parse(req.body);
+    
+    const newRole = await storage.createRole({
+      name: data.name,
+      description: data.description,
+      isSystemRole: false,
+      userCount: 0,
     });
 
+    // Associar permissões à função
+    if (data.permissions.length > 0) {
+      await storage.assignPermissionsToRole(newRole.id, data.permissions);
+    }
+
+    res.status(201).json(newRole);
   } catch (error) {
-    console.error('Erro ao obter permissões:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Dados inválidos', errors: error.errors });
+    }
+    console.error('Erro ao criar função:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+// Atualizar função
+const updateRoleSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  permissions: z.array(z.string()),
+});
+
+router.put('/roles/:roleId', async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const data = updateRoleSchema.parse(req.body);
+    
+    const updatedRole = await storage.updateRole(roleId, {
+      name: data.name,
+      description: data.description,
+    });
+
+    // Atualizar permissões da função
+    await storage.updateRolePermissions(roleId, data.permissions);
+
+    res.json(updatedRole);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Dados inválidos', errors: error.errors });
+    }
+    console.error('Erro ao atualizar função:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, ChevronDown, MoreHorizontal, Grid3X3, List, Eye, Edit, Trash, X, Trash2 } from 'lucide-react';
+import { Search, Filter, ChevronDown, MoreHorizontal, Grid3X3, List, Eye, Edit, Trash, X, Trash2, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import CreateTicketModal from '@/components/CreateTicketModal';
 import TicketFinalizationModal from '@/components/TicketFinalizationModal';
 import ServiceOrderModal from '@/components/ServiceOrderModal';
 import DeleteConfirmationDialog from '@/components/DeleteConfirmationDialog';
+import { usePermissions, PermissionGate } from '@/hooks/usePermissions';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions, PermissionGate } from '@/hooks/usePermissions';
 
 interface User {
   id: string;

@@ -10,7 +10,7 @@ import {
   mockAuth,
   AuthenticatedRequest 
 } from "./middleware/permissionMiddleware";
-import permissionsRoutes from "./routes/permissions";
+import permissionRoutes from "./routes/permissions";
 import { departmentStorage } from "./departmentStorage";
 import { insertDepartmentSchema, insertCategorySchema, insertCustomFieldSchema } from "@shared/schema";
 import { insertTicketSchema, insertCommentSchema, updateTicketSchema } from "@shared/schema";
@@ -27,7 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(mockAuth);
   
   // Registrar rotas de permissões
-  app.use(permissionsRoutes);
+  app.use("/api/permissions", permissionRoutes);
   
   // Team Performance endpoint (real data)
   app.get("/api/dashboard/team-performance", async (req, res) => {
