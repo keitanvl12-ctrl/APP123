@@ -386,7 +386,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("POST /api/tickets/:ticketId/comments - Request body:", req.body);
       console.log("POST /api/tickets/:ticketId/comments - Ticket ID:", req.params.ticketId);
       
-      const currentUser = await getCurrentUser(req);
+      const authReq = req as AuthenticatedRequest;
+      const currentUser = authReq.user;
+      
       if (!currentUser) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -404,6 +406,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const comment = await storage.createComment(validatedData);
       console.log("POST /api/tickets/:ticketId/comments - Created comment:", comment);
+      
+      // Notify WebSocket clients of new comment
+      const wsServer = getWebSocketServer();
+      if (wsServer) {
+        wsServer.broadcastUpdate('comment_created', { comment });
+      }
       
       res.status(201).json(comment);
     } catch (error) {
