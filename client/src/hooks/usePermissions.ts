@@ -1,126 +1,217 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 
-export interface Permission {
+// Interface para permissões
+interface Permission {
   id: string;
   code: string;
   name: string;
-  description?: string;
+  description: string;
   category: string;
+  subcategory: string;
 }
 
-export interface UserPermissions {
-  permissions: Permission[];
-  role: string;
-  departmentId?: string;
-}
+// Mapeamento de roles do sistema para compatibilidade
+const ROLE_MAPPING = {
+  'admin': 'administrador',
+  'supervisor': 'supervisor', 
+  'atendente': 'atendente',
+  'solicitante': 'solicitante'
+};
 
-// Hook principal para verificar permissões
+// Definição completa das permissões por função (deve coincidir com o backend)
+const SYSTEM_ROLES_PERMISSIONS = {
+  'administrador': [
+    // TODAS as permissões - acesso completo
+    'users_view', 'users_create', 'users_edit', 'users_delete', 'users_manage_roles', 'users_manage_departments',
+    'tickets_create', 'tickets_view_own', 'tickets_view_department', 'tickets_view_all', 
+    'tickets_edit_own', 'tickets_edit_department', 'tickets_edit_all', 'tickets_delete',
+    'tickets_assign', 'tickets_be_assigned', 'tickets_change_status', 'tickets_change_priority', 'tickets_add_comments',
+    'departments_view', 'departments_create', 'departments_edit', 'departments_delete', 'departments_manage',
+    'reports_view_basic', 'reports_view_department', 'reports_view_all', 'reports_export', 'reports_create_custom',
+    'system_access_admin', 'system_manage_roles', 'system_manage_config', 'system_manage_sla', 
+    'system_view_logs', 'system_backup_restore'
+  ],
+  'supervisor': [
+    // Gestão de usuários limitada
+    'users_view', 'users_create', 'users_edit', 'users_manage_departments',
+    // Acesso amplo a tickets
+    'tickets_create', 'tickets_view_all', 'tickets_edit_all', 'tickets_assign', 
+    'tickets_be_assigned', 'tickets_change_status', 'tickets_change_priority', 'tickets_add_comments',
+    // Departamentos - limitado
+    'departments_view', 'departments_edit',
+    // Relatórios avançados
+    'reports_view_all', 'reports_export', 'reports_create_custom',
+    // Acesso administrativo limitado
+    'system_access_admin'
+  ],
+  'atendente': [
+    // Usuários - só visualizar
+    'users_view',
+    // Tickets do departamento
+    'tickets_create', 'tickets_view_department', 'tickets_edit_department', 
+    'tickets_be_assigned', 'tickets_change_status', 'tickets_add_comments',
+    // Departamentos - só visualizar
+    'departments_view',
+    // Relatórios básicos
+    'reports_view_basic', 'reports_view_department'
+  ],
+  'solicitante': [
+    // Apenas tickets próprios
+    'tickets_create', 'tickets_view_own', 'tickets_edit_own', 'tickets_add_comments',
+    // Relatórios básicos próprios
+    'reports_view_basic'
+  ]
+};
+
 export function usePermissions() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  
-  const { data: userPermissions, isLoading: permissionsLoading } = useQuery({
-    queryKey: ['/api/permissions/user', user?.id],
-    enabled: isAuthenticated && !!user?.id,
+  const { user, isAuthenticated } = useAuth();
+
+  // Buscar todas as permissões disponíveis do sistema
+  const { data: allPermissions = [] } = useQuery<Permission[]>({
+    queryKey: ['/api/permissions'],
+    enabled: isAuthenticated,
   });
 
-  const isLoading = authLoading || permissionsLoading;
-
-  // Verificar se usuário tem uma permissão específica
+  // Função para verificar se o usuário tem uma permissão específica
   const hasPermission = (permissionCode: string): boolean => {
-    if (!userPermissions?.permissions) return false;
-    return userPermissions.permissions.some((p: Permission) => p.code === permissionCode);
+    if (!user || !isAuthenticated) return false;
+    
+    // Mapear role do usuário para role do sistema
+    const systemRole = ROLE_MAPPING[user.role as keyof typeof ROLE_MAPPING];
+    if (!systemRole) return false;
+
+    // Verificar se a role tem a permissão
+    const rolePermissions = SYSTEM_ROLES_PERMISSIONS[systemRole as keyof typeof SYSTEM_ROLES_PERMISSIONS];
+    return rolePermissions?.includes(permissionCode) || false;
   };
 
-  // Verificar múltiplas permissões (qualquer uma)
+  // Verificar múltiplas permissões (OR - pelo menos uma)
   const hasAnyPermission = (permissionCodes: string[]): boolean => {
     return permissionCodes.some(code => hasPermission(code));
   };
 
-  // Verificar múltiplas permissões (todas)
+  // Verificar múltiplas permissões (AND - todas)
   const hasAllPermissions = (permissionCodes: string[]): boolean => {
     return permissionCodes.every(code => hasPermission(code));
   };
 
-  // Verificar se pode ver um ticket específico
-  const canViewTicket = (ticket: any): boolean => {
-    if (!ticket || !user) return false;
+  // Obter nível de acesso a tickets
+  const getTicketAccessLevel = (): 'none' | 'own' | 'department' | 'all' => {
+    if (hasPermission('tickets_view_all')) return 'all';
+    if (hasPermission('tickets_view_department')) return 'department';
+    if (hasPermission('tickets_view_own')) return 'own';
+    return 'none';
+  };
 
-    // Administradores e supervisores veem tudo
-    if (hasPermission('ver_todos_os_tickets')) {
-      return true;
-    }
-
-    // Solicitantes só veem próprios tickets
-    if (hasPermission('ver_proprios_tickets') && !hasPermission('ver_todos_os_tickets')) {
-      return ticket.createdBy === user.id;
-    }
-
+  // Verificar se pode editar um ticket específico
+  const canEditTicket = (ticket: any): boolean => {
+    if (!user || !ticket) return false;
+    
+    // Admin pode editar tudo
+    if (hasPermission('tickets_edit_all')) return true;
+    
+    // Pode editar tickets do departamento
+    if (hasPermission('tickets_edit_department') && 
+        ticket.requesterDepartmentId === user.departmentId) return true;
+    
+    // Pode editar próprios tickets
+    if (hasPermission('tickets_edit_own') && ticket.createdBy === user.id) return true;
+    
     return false;
   };
 
-  // Filtrar tickets baseado nas permissões
-  const getFilteredTickets = (tickets: any[]): any[] => {
-    if (!tickets || !Array.isArray(tickets)) return [];
+  // Verificar se pode deletar tickets
+  const canDeleteTicket = (): boolean => {
+    return hasPermission('tickets_delete');
+  };
+
+  // Verificar se pode acessar administração
+  const canAccessAdmin = (): boolean => {
+    return hasPermission('system_access_admin');
+  };
+
+  // Verificar se pode gerenciar usuários
+  const canManageUsers = (): boolean => {
+    return hasAnyPermission(['users_create', 'users_edit', 'users_delete']);
+  };
+
+  // Verificar se pode gerenciar funções
+  const canManageRoles = (): boolean => {
+    return hasPermission('system_manage_roles');
+  };
+
+  // Verificar se pode gerenciar SLA
+  const canManageSLA = (): boolean => {
+    return hasPermission('system_manage_sla');
+  };
+
+  // Obter todas as permissões do usuário atual
+  const getUserPermissions = (): string[] => {
+    if (!user || !isAuthenticated) return [];
     
-    // Se pode ver todos os tickets, retorna todos
-    if (hasPermission('ver_todos_os_tickets')) {
-      return tickets;
-    }
+    const systemRole = ROLE_MAPPING[user.role as keyof typeof ROLE_MAPPING];
+    if (!systemRole) return [];
 
-    // Se só pode ver próprios tickets
-    if (hasPermission('ver_proprios_tickets')) {
-      return tickets.filter(ticket => canViewTicket(ticket));
-    }
-
-    return [];
+    return SYSTEM_ROLES_PERMISSIONS[systemRole as keyof typeof SYSTEM_ROLES_PERMISSIONS] || [];
   };
 
   return {
-    permissions: userPermissions?.permissions || [],
-    isLoading,
+    // Dados
+    allPermissions,
+    userPermissions: getUserPermissions(),
+    
+    // Verificações gerais
     hasPermission,
     hasAnyPermission,
     hasAllPermissions,
-    canViewTicket,
-    getFilteredTickets,
-    userRole: userPermissions?.role,
-    userDepartment: userPermissions?.departmentId,
+    
+    // Verificações específicas de funcionalidades
+    getTicketAccessLevel,
+    canEditTicket,
+    canDeleteTicket,
+    canAccessAdmin,
+    canManageUsers,
+    canManageRoles,
+    canManageSLA,
+    
+    // Estado do usuário
+    isAuthenticated,
+    user,
   };
 }
 
-// Hook auxiliar para verificação de permissões com loading
-export function usePermissionGuard(permissions: string[], mode: 'any' | 'all' = 'any') {
-  const { hasAnyPermission, hasAllPermissions, isLoading } = usePermissions();
-  
-  const hasAccess = mode === 'any' 
-    ? hasAnyPermission(permissions)
-    : hasAllPermissions(permissions);
-
-  return { hasAccess, isLoading };
+// Hook para verificação rápida de permissão única
+export function useHasPermission(permissionCode: string): boolean {
+  const { hasPermission } = usePermissions();
+  return hasPermission(permissionCode);
 }
 
-// Componente de proteção para renderização condicional
+// Componente wrapper para controle de acesso
+interface PermissionGateProps {
+  permission?: string;
+  permissions?: string[];
+  requireAll?: boolean; // true = AND, false = OR (default)
+  fallback?: React.ReactNode;
+  children: React.ReactNode;
+}
+
 export function PermissionGate({ 
-  permissions, 
-  mode = 'any', 
+  permission, 
+  permissions = [], 
+  requireAll = false, 
   fallback = null, 
   children 
-}: {
-  permissions: string[];
-  mode?: 'any' | 'all';
-  fallback?: any;
-  children: any;
-}) {
-  const { hasAccess, isLoading } = usePermissionGuard(permissions, mode);
+}: PermissionGateProps) {
+  const { hasPermission, hasAnyPermission, hasAllPermissions } = usePermissions();
   
-  if (isLoading) {
-    return null;
+  let hasAccess = false;
+  
+  if (permission) {
+    hasAccess = hasPermission(permission);
+  } else if (permissions.length > 0) {
+    hasAccess = requireAll ? hasAllPermissions(permissions) : hasAnyPermission(permissions);
   }
   
-  if (!hasAccess) {
-    return fallback;
-  }
-  
-  return children;
+  return hasAccess ? children : fallback;
 }

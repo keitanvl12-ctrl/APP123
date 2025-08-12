@@ -14,35 +14,71 @@ import {
   Building2
 } from "lucide-react";
 import { getCurrentUser } from '@/lib/userService';
+import { usePermissions } from '@/hooks/usePermissions';
 
-const getNavigationItems = (userRole: string) => {
-  const baseItems = [
-    { path: "/", icon: LayoutDashboard, label: "Painel" },
-    { path: "/tickets", icon: List, label: "Todos os Tickets" },
-    { path: "/kanban", icon: Columns, label: "Quadro Kanban" },
-    { path: "/analytics", icon: BarChart3, label: "Análises" },
-    { path: "/team", icon: Users, label: "Equipe" },
-    { path: "/config", icon: Settings, label: "Status e Prioridades" },
-  ];
+interface NavigationItem {
+  path: string;
+  icon: any;
+  label: string;
+  permission?: string;
+  permissions?: string[];
+}
 
-  // Adicionar seção de administração apenas para administradores
-  if (userRole === 'administrador') {
-    baseItems.push({ path: "/departments", icon: Building2, label: "Departamentos" });
-    baseItems.push({ path: "/users", icon: Users, label: "Usuários" });
-    baseItems.push({ path: "/roles", icon: Shield, label: "Funções" });
-    baseItems.push({ path: "/permissions", icon: Settings, label: "Função" });
-    baseItems.push({ path: "/hierarchy", icon: Shield, label: "Hierarquias" });
-  }
-
-  baseItems.push({ path: "/settings", icon: Settings, label: "Configurações" });
-
-  return baseItems;
-};
+const getAllNavigationItems = (): NavigationItem[] => [
+  // Dashboard - sempre visível
+  { path: "/", icon: LayoutDashboard, label: "Painel" },
+  
+  // Tickets - baseado em permissões de visualização
+  { path: "/tickets", icon: List, label: "Todos os Tickets", permissions: ['tickets_view_own', 'tickets_view_department', 'tickets_view_all'] },
+  { path: "/kanban", icon: Columns, label: "Quadro Kanban", permissions: ['tickets_view_own', 'tickets_view_department', 'tickets_view_all'] },
+  
+  // Relatórios - baseado em permissões de relatórios
+  { path: "/analytics", icon: BarChart3, label: "Análises", permissions: ['reports_view_basic', 'reports_view_department', 'reports_view_all'] },
+  
+  // Equipe - baseado em permissões de usuários
+  { path: "/team", icon: Users, label: "Equipe", permission: 'users_view' },
+  
+  // Configurações básicas - permissão de tickets
+  { path: "/config", icon: Settings, label: "Status e Prioridades", permissions: ['tickets_view_department', 'tickets_view_all'] },
+  
+  // === ADMINISTRAÇÃO ===
+  // Departamentos
+  { path: "/departments", icon: Building2, label: "Departamentos", permission: 'departments_view' },
+  
+  // Usuários
+  { path: "/users", icon: Users, label: "Usuários", permission: 'users_view' },
+  
+  // Funções e permissões
+  { path: "/roles", icon: Shield, label: "Funções", permission: 'system_manage_roles' },
+  { path: "/permissions", icon: Settings, label: "Função", permission: 'system_manage_roles' },
+  { path: "/hierarchy", icon: Shield, label: "Hierarquias", permission: 'system_access_admin' },
+  
+  // Configurações do sistema
+  { path: "/settings", icon: Settings, label: "Configurações", permission: 'system_manage_config' }
+];
 
 export default function Sidebar() {
   const [location] = useLocation();
   const currentUser = getCurrentUser();
-  const navigationItems = getNavigationItems(currentUser.role);
+  const { hasPermission, hasAnyPermission } = usePermissions();
+  
+  // Filtrar itens de navegação baseado nas permissões do usuário
+  const navigationItems = getAllNavigationItems().filter(item => {
+    // Se não tem permissão definida, sempre mostrar (ex: Dashboard)
+    if (!item.permission && !item.permissions) return true;
+    
+    // Verificar permissão única
+    if (item.permission) {
+      return hasPermission(item.permission);
+    }
+    
+    // Verificar múltiplas permissões (OR - pelo menos uma)
+    if (item.permissions) {
+      return hasAnyPermission(item.permissions);
+    }
+    
+    return false;
+  });
 
   return (
     <aside className="w-64 bg-white border-r border-border flex-shrink-0 flex flex-col shadow-enterprise">

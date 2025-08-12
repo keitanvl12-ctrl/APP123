@@ -153,13 +153,36 @@ export default function RoleManagementSimple() {
   const getSystemRolePermissions = (roleId: string): string[] => {
     switch (roleId) {
       case 'administrador':
-        return ['1', '2', '3', '4', '5', '6']; // All permissions
+        return [
+          'users_view', 'users_create', 'users_edit', 'users_delete', 'users_manage_roles', 'users_manage_departments',
+          'tickets_create', 'tickets_view_all', 'tickets_edit_all', 'tickets_delete', 'tickets_assign', 
+          'tickets_be_assigned', 'tickets_change_status', 'tickets_change_priority', 'tickets_add_comments',
+          'departments_view', 'departments_create', 'departments_edit', 'departments_delete', 'departments_manage',
+          'reports_view_all', 'reports_export', 'reports_create_custom',
+          'system_access_admin', 'system_manage_roles', 'system_manage_config', 'system_manage_sla'
+        ];
       case 'supervisor':
-        return ['1', '2', '3', '4', '5']; // All except system config
+        return [
+          'users_view', 'users_create', 'users_edit', 'users_manage_departments',
+          'tickets_create', 'tickets_view_all', 'tickets_edit_all', 'tickets_assign', 
+          'tickets_be_assigned', 'tickets_change_status', 'tickets_change_priority', 'tickets_add_comments',
+          'departments_view', 'departments_edit',
+          'reports_view_all', 'reports_export', 'reports_create_custom',
+          'system_access_admin'
+        ];
       case 'atendente':
-        return ['1', '2', '3', '4']; // Ticket management
+        return [
+          'users_view',
+          'tickets_create', 'tickets_view_department', 'tickets_edit_department', 
+          'tickets_be_assigned', 'tickets_change_status', 'tickets_add_comments',
+          'departments_view',
+          'reports_view_basic', 'reports_view_department'
+        ];
       case 'solicitante':
-        return ['1', '2']; // Create and view own tickets
+        return [
+          'tickets_create', 'tickets_view_own', 'tickets_edit_own', 'tickets_add_comments',
+          'reports_view_basic'
+        ];
       default:
         return [];
     }
@@ -424,19 +447,41 @@ export default function RoleManagementSimple() {
             
             <div>
               <Label>Permissões</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 max-h-60 overflow-y-auto border rounded p-3">
-                {allPermissions.map((permission: any) => (
-                  <div key={permission.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`perm-${permission.id}`}
-                      checked={selectedPermissions.includes(permission.id)}
-                      onCheckedChange={() => handlePermissionToggle(permission.id)}
-                    />
-                    <Label htmlFor={`perm-${permission.id}`} className="text-sm">
-                      {permission.name}
-                    </Label>
-                  </div>
-                ))}
+              <div className="mt-2 max-h-80 overflow-y-auto border rounded p-4">
+                {['usuarios', 'tickets', 'departamentos', 'relatorios', 'sistema'].map(category => {
+                  const categoryPermissions = allPermissions.filter((p: any) => p.category === category);
+                  if (categoryPermissions.length === 0) return null;
+                  
+                  const categoryNames = {
+                    usuarios: 'Usuários',
+                    tickets: 'Tickets',
+                    departamentos: 'Departamentos', 
+                    relatorios: 'Relatórios',
+                    sistema: 'Sistema'
+                  };
+                  
+                  return (
+                    <div key={category} className="mb-4">
+                      <h4 className="font-medium text-sm text-gray-700 mb-2 border-b pb-1">
+                        {categoryNames[category as keyof typeof categoryNames]}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {categoryPermissions.map((permission: any) => (
+                          <div key={permission.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`perm-${permission.id}`}
+                              checked={selectedPermissions.includes(permission.id)}
+                              onCheckedChange={() => handlePermissionToggle(permission.id)}
+                            />
+                            <Label htmlFor={`perm-${permission.id}`} className="text-xs leading-tight">
+                              {permission.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             
@@ -512,19 +557,41 @@ export default function RoleManagementSimple() {
             
             <div>
               <Label>Permissões</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 max-h-60 overflow-y-auto border rounded p-3">
-                {allPermissions.map((permission: any) => (
-                  <div key={permission.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`edit-perm-${permission.id}`}
-                      checked={selectedPermissions.includes(permission.id)}
-                      onCheckedChange={() => handlePermissionToggle(permission.id)}
-                    />
-                    <Label htmlFor={`edit-perm-${permission.id}`} className="text-sm">
-                      {permission.name}
-                    </Label>
-                  </div>
-                ))}
+              <div className="mt-2 max-h-80 overflow-y-auto border rounded p-4">
+                {['usuarios', 'tickets', 'departamentos', 'relatorios', 'sistema'].map(category => {
+                  const categoryPermissions = allPermissions.filter((p: any) => p.category === category);
+                  if (categoryPermissions.length === 0) return null;
+                  
+                  const categoryNames = {
+                    usuarios: 'Usuários',
+                    tickets: 'Tickets',
+                    departamentos: 'Departamentos', 
+                    relatorios: 'Relatórios',
+                    sistema: 'Sistema'
+                  };
+                  
+                  return (
+                    <div key={category} className="mb-4">
+                      <h4 className="font-medium text-sm text-gray-700 mb-2 border-b pb-1">
+                        {categoryNames[category as keyof typeof categoryNames]}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {categoryPermissions.map((permission: any) => (
+                          <div key={permission.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`edit-perm-${permission.id}`}
+                              checked={selectedPermissions.includes(permission.id)}
+                              onCheckedChange={() => handlePermissionToggle(permission.id)}
+                            />
+                            <Label htmlFor={`edit-perm-${permission.id}`} className="text-xs leading-tight">
+                              {permission.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
             
