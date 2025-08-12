@@ -1,6 +1,5 @@
+
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '../lib/queryClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Clock, User, FileText, Calendar, AlertCircle,
-  CheckCircle, Building2, Tag, MessageCircle, UserPlus
+  CheckCircle, Building2, Tag, MessageCircle, UserPlus,
+  Loader2, Database, Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,154 +21,341 @@ interface TicketDetailModalProps {
   onClose: () => void;
 }
 
+interface TicketData {
+  id: string;
+  ticketNumber: string;
+  subject: string;
+  description: string;
+  status: string;
+  priority: string;
+  category: string;
+  formData?: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  assignedToUser?: any;
+  createdByUser?: any;
+  department?: any;
+  requesterName?: string;
+  requesterEmail?: string;
+  requesterPhone?: string;
+  requesterDepartment?: any;
+  slaProgressPercent?: number;
+  slaStatus?: string;
+  slaHoursTotal?: number;
+  slaSource?: string;
+}
+
+interface CustomFieldValue {
+  id: string;
+  value: string;
+  customField: {
+    id: string;
+    name: string;
+    type: string;
+    required: boolean;
+  };
+}
+
+interface Comment {
+  id: string;
+  content: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+  };
+}
+
+interface DebugInfo {
+  ticketLoaded: boolean;
+  customFieldsLoaded: boolean;
+  commentsLoaded: boolean;
+  usersLoaded: boolean;
+  configsLoaded: boolean;
+  totalRequests: number;
+  errors: string[];
+}
+
 export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketDetailModalProps) {
-  const [isAssigning, setIsAssigning] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Buscar dados do ticket
-  const { data: tickets = [], isLoading: ticketLoading } = useQuery({
-    queryKey: ['/api/tickets'],
-    enabled: isOpen && !!ticketId,
-  });
+  // Core data states
+  const [ticket, setTicket] = useState<TicketData | null>(null);
+  const [customFields, setCustomFields] = useState<CustomFieldValue[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
   
-  // Buscar usuários que podem ser atribuídos (com permissão para gerenciar tickets)
-  const { data: users = [], isLoading: usersLoading } = useQuery<any[]>({
-    queryKey: ['/api/users/assignable'],
-    enabled: isOpen && !!ticketId,
-  });
-
-  console.log("🔍 Users query result:", { users, usersLoading, count: users.length });
+  // Configuration states
+  const [statusConfigs, setStatusConfigs] = useState<any[]>([]);
+  const [priorityConfigs, setPriorityConfigs] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   
-  const ticket = (tickets as any[])?.find((t: any) => t.id === ticketId);
-
-  console.log("Ticket data:", ticket);
-  console.log("Ticket assignedToUser:", ticket?.assignedToUser);
-  console.log("FormData raw:", ticket?.formData);
-
-  // Parse form data if available
-  let parsedFormData = null;
-  if (ticket?.formData) {
-    try {
-      parsedFormData = JSON.parse(ticket.formData);
-      console.log("Parsed form data:", parsedFormData);
-    } catch (error) {
-      console.error("Error parsing form data:", error);
-    }
-  }
-
-  // Mutation para atribuir responsável
-  const assignTicketMutation = useMutation({
-    mutationFn: async ({ ticketId, assignedTo }: { ticketId: string; assignedTo: string | null }) => {
-      console.log("🔄 Attempting assignment:", { ticketId, assignedTo });
-      const result = await apiRequest(`/api/tickets/${ticketId}/assign`, 'PATCH', { assignedTo });
-      console.log("✅ Assignment result:", result);
-      // result is a Response object, need to parse it
-      const data = await result.json();
-      console.log("✅ Assignment result assignedToUser:", data?.assignedToUser);
-      return data;
-    },
-    onSuccess: (data) => {
-      console.log("🎉 Assignment mutation successful:", data);
-      // Invalidate multiple cache keys to force refresh
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/tickets', ticketId] });
-      queryClient.refetchQueries({ queryKey: ['/api/tickets'] });
-      toast({
-        title: "Responsável atribuído",
-        description: "O ticket foi atribuído com sucesso.",
-      });
-      setIsAssigning(false);
-    },
-    onError: (error: any) => {
-      console.error("Assignment mutation failed:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao atribuir responsável",
-        variant: "destructive",
-      });
-    },
-  });
-
-
-
-  // Buscar comentários do ticket
-  const { data: comments, isLoading: commentsLoading } = useQuery<any[]>({
-    queryKey: ['/api/tickets', ticketId, 'comments'],
-    enabled: isOpen && !!ticketId,
-  });
-
-  // Buscar configurações de status e prioridade
-  const { data: statusConfigs } = useQuery<any[]>({
-    queryKey: ['/api/config/status'],
-    enabled: isOpen,
-  });
-
-  // Mantido priorityConfigs apenas para exibir cores/nomes - NÃO para SLA
-  const { data: priorityConfigs } = useQuery<any[]>({
-    queryKey: ['/api/config/priority'],
-    enabled: isOpen,
-  });
-
-  // Buscar departamentos
-  const { data: departments } = useQuery<any[]>({
-    queryKey: ['/api/departments'],
-    enabled: isOpen,
-  });
-
-  // Estado local para campos customizados - abordagem direta
-  const [customFieldValues, setCustomFieldValues] = useState<any[]>([]);
+  // Loading states
+  const [loading, setLoading] = useState(false);
   const [customFieldsLoading, setCustomFieldsLoading] = useState(false);
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
   
-  // Buscar campos customizados diretamente quando o modal abrir
-  useEffect(() => {
-    if (isOpen && ticketId) {
-      setCustomFieldsLoading(true);
-      console.log("🔍 Fetching custom fields for ticket:", ticketId);
+  // UI states
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo>({
+    ticketLoaded: false,
+    customFieldsLoaded: false,
+    commentsLoaded: false,
+    usersLoaded: false,
+    configsLoaded: false,
+    totalRequests: 0,
+    errors: []
+  });
+  
+  const { toast } = useToast();
+
+  // Helper function to update debug info
+  const updateDebug = (updates: Partial<DebugInfo>) => {
+    setDebugInfo(prev => ({ ...prev, ...updates }));
+  };
+
+  const addDebugError = (error: string) => {
+    setDebugInfo(prev => ({ 
+      ...prev, 
+      errors: [...prev.errors, error],
+      totalRequests: prev.totalRequests + 1
+    }));
+  };
+
+  // Direct fetch function with error handling
+  const fetchData = async (url: string, description: string): Promise<any> => {
+    try {
+      setDebugInfo(prev => ({ ...prev, totalRequests: prev.totalRequests + 1 }));
+      console.log(`🔄 Fetching ${description} from:`, url);
       
-      fetch(`/api/tickets/${ticketId}/custom-fields`, {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         credentials: 'include'
-      })
-        .then(res => res.json())
-        .then(data => {
-          console.log("🔍 Custom fields data received:", data);
-          setCustomFieldValues(data || []);
-          setCustomFieldsLoading(false);
-        })
-        .catch(err => {
-          console.error("🔍 Error fetching custom fields:", err);
-          setCustomFieldValues([]);
-          setCustomFieldsLoading(false);
-        });
-    } else {
-      setCustomFieldValues([]);
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ ${description} loaded:`, data);
+      return data;
+    } catch (error) {
+      console.error(`❌ Error fetching ${description}:`, error);
+      addDebugError(`${description}: ${error.message}`);
+      return null;
     }
+  };
+
+  // Load all ticket data when modal opens
+  useEffect(() => {
+    if (!isOpen || !ticketId) {
+      // Reset states when modal closes
+      setTicket(null);
+      setCustomFields([]);
+      setComments([]);
+      setAssignableUsers([]);
+      setDebugInfo({
+        ticketLoaded: false,
+        customFieldsLoaded: false,
+        commentsLoaded: false,
+        usersLoaded: false,
+        configsLoaded: false,
+        totalRequests: 0,
+        errors: []
+      });
+      return;
+    }
+
+    const loadTicketData = async () => {
+      setLoading(true);
+      console.log('🚀 Loading ticket data for ID:', ticketId);
+
+      // Load ticket details
+      const ticketsData = await fetchData('/api/tickets', 'All tickets');
+      if (ticketsData) {
+        const foundTicket = ticketsData.find((t: any) => t.id === ticketId);
+        if (foundTicket) {
+          setTicket(foundTicket);
+          updateDebug({ ticketLoaded: true });
+          console.log('🎯 Ticket found:', foundTicket);
+        } else {
+          addDebugError('Ticket not found in tickets list');
+        }
+      }
+
+      // Load custom fields specifically for this ticket
+      setCustomFieldsLoading(true);
+      const customFieldsData = await fetchData(`/api/tickets/${ticketId}/custom-fields`, 'Custom fields');
+      if (customFieldsData) {
+        setCustomFields(customFieldsData);
+        updateDebug({ customFieldsLoaded: true });
+        console.log('🎯 Custom fields loaded:', customFieldsData.length, 'fields');
+      } else {
+        setCustomFields([]);
+        updateDebug({ customFieldsLoaded: true });
+      }
+      setCustomFieldsLoading(false);
+
+      // Load comments
+      const commentsData = await fetchData(`/api/tickets/${ticketId}/comments`, 'Comments');
+      if (commentsData) {
+        setComments(commentsData);
+        updateDebug({ commentsLoaded: true });
+      }
+
+      // Load assignable users
+      const usersData = await fetchData('/api/users/assignable', 'Assignable users');
+      if (usersData) {
+        setAssignableUsers(usersData);
+        updateDebug({ usersLoaded: true });
+      }
+
+      // Load configurations
+      const [statusData, priorityData, departmentsData] = await Promise.all([
+        fetchData('/api/config/status', 'Status configs'),
+        fetchData('/api/config/priority', 'Priority configs'),
+        fetchData('/api/departments', 'Departments')
+      ]);
+
+      if (statusData) setStatusConfigs(statusData);
+      if (priorityData) setPriorityConfigs(priorityData);
+      if (departmentsData) setDepartments(departmentsData);
+      updateDebug({ configsLoaded: true });
+
+      setLoading(false);
+    };
+
+    loadTicketData();
   }, [isOpen, ticketId]);
 
-  if (ticketLoading) {
+  // Assignment functionality
+  const handleAssignUser = async (userId: string | null) => {
+    if (!ticket) return;
+
+    setAssignmentLoading(true);
+    try {
+      console.log('🔄 Assigning ticket:', ticket.id, 'to user:', userId);
+      
+      const response = await fetch(`/api/tickets/${ticket.id}/assign`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ assignedTo: userId })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to assign ticket: ${response.statusText}`);
+      }
+
+      const updatedTicket = await response.json();
+      setTicket(updatedTicket);
+      
+      toast({
+        title: "Responsável atribuído",
+        description: userId ? "Ticket atribuído com sucesso" : "Atribuição removida",
+      });
+      
+      setIsAssigning(false);
+    } catch (error) {
+      console.error('❌ Assignment failed:', error);
+      toast({
+        title: "Erro na atribuição",
+        description: "Não foi possível atribuir o responsável",
+        variant: "destructive",
+      });
+    } finally {
+      setAssignmentLoading(false);
+    }
+  };
+
+  // Helper functions for display
+  const getStatusConfig = (status: string) => {
+    return statusConfigs.find(s => s.value === status) || {
+      name: status,
+      color: '#6B7280',
+      textColor: '#FFFFFF'
+    };
+  };
+
+  const getPriorityConfig = (priority: string) => {
+    return priorityConfigs.find(p => p.value === priority) || {
+      name: priority,
+      color: '#6B7280',
+      textColor: '#FFFFFF'
+    };
+  };
+
+  const getDepartmentName = (departmentId: string) => {
+    const dept = departments.find(d => d.id === departmentId);
+    return dept?.name || departmentId;
+  };
+
+  // Parse form data for additional details
+  const parsedFormData = React.useMemo(() => {
+    if (!ticket?.formData) return null;
+    try {
+      return JSON.parse(ticket.formData);
+    } catch (error) {
+      console.error('Error parsing form data:', error);
+      return null;
+    }
+  }, [ticket?.formData]);
+
+  // Loading state
+  if (loading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-            <div className="h-32 bg-gray-200 rounded mb-4"></div>
-            <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center space-y-4">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+              <div className="space-y-2">
+                <p className="text-lg font-medium">Carregando detalhes do ticket...</p>
+                <div className="text-sm text-gray-500 space-y-1">
+                  <p>📊 Total de requisições: {debugInfo.totalRequests}</p>
+                  <p>🎫 Ticket: {debugInfo.ticketLoaded ? '✅' : '⏳'}</p>
+                  <p>🏷️ Campos customizados: {debugInfo.customFieldsLoaded ? '✅' : '⏳'}</p>
+                  <p>💬 Comentários: {debugInfo.commentsLoaded ? '✅' : '⏳'}</p>
+                  <p>👥 Usuários: {debugInfo.usersLoaded ? '✅' : '⏳'}</p>
+                  <p>⚙️ Configurações: {debugInfo.configsLoaded ? '✅' : '⏳'}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
+  // Error state
   if (!ticket) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Erro</DialogTitle>
+            <DialogTitle className="flex items-center">
+              <AlertCircle className="w-5 h-5 mr-2 text-red-500" />
+              Erro ao carregar ticket
+            </DialogTitle>
           </DialogHeader>
-          <div className="p-4 text-center">
-            <p>Ticket não encontrado.</p>
-            <Button onClick={onClose} className="mt-4">
+          <div className="space-y-4">
+            <p>Não foi possível carregar os detalhes do ticket.</p>
+            {debugInfo.errors.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm font-medium text-red-800 mb-2">Erros encontrados:</p>
+                <ul className="text-sm text-red-700 space-y-1">
+                  {debugInfo.errors.map((error, index) => (
+                    <li key={index}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <Button onClick={onClose} className="w-full">
               Fechar
             </Button>
           </div>
@@ -177,51 +364,24 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
     );
   }
 
-  // Função para obter configuração de status
-  const getStatusConfig = (statusValue: string) => {
-    return statusConfigs?.find(s => s.value === statusValue) || { 
-      name: statusValue === 'open' ? 'Aberto' :
-            statusValue === 'in_progress' ? 'Em Andamento' :
-            statusValue === 'resolved' ? 'Resolvido' :
-            statusValue === 'closed' ? 'Fechado' : statusValue, 
-      color: '#6B7280',
-      textColor: '#FFFFFF'
-    };
-  };
-
-  // Função para obter configuração de prioridade  
-  const getPriorityConfig = (priorityValue: string) => {
-    return priorityConfigs?.find(p => p.value === priorityValue) || { 
-      name: priorityValue === 'critical' ? 'Crítica' :
-            priorityValue === 'high' ? 'Alta' :
-            priorityValue === 'medium' ? 'Média' :
-            priorityValue === 'low' ? 'Baixa' : priorityValue, 
-      color: '#6B7280',
-      textColor: '#FFFFFF'
-    };
-  };
-
-  // Função para obter nome do departamento
-  const getDepartmentName = (departmentId: string) => {
-    const dept = departments?.find(d => d.id === departmentId);
-    return dept ? dept.name : departmentId;
-  };
-
   const statusConfig = getStatusConfig(ticket.status);
   const priorityConfig = getPriorityConfig(ticket.priority);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-3">
             <FileText className="w-6 h-6" />
-            <span>Detalhes do Ticket {ticket.ticketNumber}</span>
+            <span>Ticket {ticket.ticketNumber}</span>
+            <Badge className="ml-2 bg-blue-100 text-blue-800">
+              ID: {ticket.id.substring(0, 8)}...
+            </Badge>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Header with Status and Priority */}
+          {/* Status and Priority Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Badge 
@@ -246,13 +406,93 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
             </div>
           </div>
 
-          {/* Ticket Info Cards */}
+          {/* PRIORITY SECTION: Custom Fields Information */}
+          <Card className="border-2 border-blue-200 bg-blue-50/30">
+            <CardHeader className="bg-blue-100/50">
+              <CardTitle className="text-lg font-bold flex items-center">
+                <Settings className="w-5 h-5 mr-2 text-blue-600" />
+                Informações Específicas da Categoria
+                <div className="ml-auto flex items-center space-x-2">
+                  {customFieldsLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <Badge variant="outline" className="bg-white">
+                    {customFields.length} {customFields.length === 1 ? 'campo' : 'campos'}
+                  </Badge>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {customFieldsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center space-y-2">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-blue-500" />
+                    <p className="text-sm text-gray-600">Carregando campos customizados...</p>
+                  </div>
+                </div>
+              ) : customFields.length === 0 ? (
+                <div className="text-center py-8">
+                  <Database className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                  <p className="text-gray-600 mb-2">Nenhum campo específico encontrado</p>
+                  <p className="text-sm text-gray-500">
+                    Este ticket não possui campos customizados da categoria
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {customFields.map((fieldValue) => (
+                      <div key={fieldValue.id} className="space-y-2">
+                        <label className="text-sm font-semibold text-blue-700 flex items-center">
+                          <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                          {fieldValue.customField?.name || 'Campo sem nome'}
+                        </label>
+                        <div className="bg-white border-2 border-blue-200 rounded-lg p-4 shadow-sm">
+                          <p className="text-sm text-gray-800 font-medium">
+                            {fieldValue.value || 'Valor não informado'}
+                          </p>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Tipo: {fieldValue.customField?.type || 'N/A'} • 
+                          {fieldValue.customField?.required ? ' Obrigatório' : ' Opcional'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Debug Information */}
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg border">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <span className="font-medium">Ticket ID:</span>
+                    <p className="font-mono">{ticketId}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Status Carregamento:</span>
+                    <p className={customFieldsLoading ? 'text-orange-600' : 'text-green-600'}>
+                      {customFieldsLoading ? 'Carregando...' : 'Concluído'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Total Campos:</span>
+                    <p>{customFields.length}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium">Categoria:</span>
+                    <p>{ticket.category || 'Não definida'}</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Basic Ticket Information */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center">
                   <User className="w-4 h-4 mr-1" />
-                  Informações do Solicitante
+                  Solicitante
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -269,7 +509,6 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
                     </div>
                   </div>
                   
-                  {/* Informações de contato detalhadas */}
                   <div className="space-y-2 border-t pt-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-500">E-mail:</span>
@@ -319,8 +558,13 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
                           size="sm"
                           onClick={() => setIsAssigning(true)}
                           className="ml-2"
+                          disabled={assignmentLoading}
                         >
-                          <UserPlus className="w-4 h-4 mr-1" />
+                          {assignmentLoading ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <UserPlus className="w-4 h-4 mr-1" />
+                          )}
                           {ticket.assignedToUser ? 'Alterar' : 'Atribuir'}
                         </Button>
                       )}
@@ -330,24 +574,17 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
                       <div className="mt-3 space-y-2">
                         <Select 
                           onValueChange={(value) => {
-                            console.log("🔄 Select onChange triggered:", { value, ticketId: ticket.id });
-                            if (value === 'unassign') {
-                              console.log("🔄 Unassigning ticket");
-                              assignTicketMutation.mutate({ ticketId: ticket.id, assignedTo: null });
-                            } else {
-                              console.log("🔄 Assigning ticket to user:", value);
-                              assignTicketMutation.mutate({ ticketId: ticket.id, assignedTo: value });
-                            }
-                            setIsAssigning(false);
+                            const userId = value === 'unassign' ? null : value;
+                            handleAssignUser(userId);
                           }}
-                          disabled={assignTicketMutation.isPending}
+                          disabled={assignmentLoading}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione um responsável" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="unassign">Não atribuído</SelectItem>
-                            {users.map((user) => (
+                            {assignableUsers.map((user) => (
                               <SelectItem key={user.id} value={user.id}>
                                 {user.name} ({user.role})
                               </SelectItem>
@@ -359,7 +596,7 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
                             variant="outline"
                             size="sm"
                             onClick={() => setIsAssigning(false)}
-                            disabled={assignTicketMutation.isPending}
+                            disabled={assignmentLoading}
                           >
                             Cancelar
                           </Button>
@@ -399,203 +636,87 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
             </div>
           </div>
 
-          {/* Custom Fields from Category - Debug Version */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold flex items-center">
-                <FileText className="w-5 h-5 mr-2" />
-                Informações Específicas da Categoria
-                <span className="ml-2 text-xs bg-blue-100 px-2 py-1 rounded">
-                  {customFieldValues ? `${customFieldValues.length} campos` : 'Carregando...'}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {customFieldsLoading && (
-                <div className="text-sm text-gray-500">Carregando campos customizados...</div>
-              )}
-              {!customFieldsLoading && (!customFieldValues || customFieldValues.length === 0) && (
-                <div className="text-sm text-gray-500">Nenhum campo específico da categoria encontrado.</div>
-              )}
-              {customFieldValues && customFieldValues.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {customFieldValues.map((fieldValue: any) => (
-                    <div key={fieldValue.id} className="space-y-1">
-                      <label className="text-sm font-medium text-gray-600">
-                        {fieldValue.customField?.name || 'Campo personalizado'}
-                      </label>
-                      <div className="bg-gray-50 p-3 rounded border">
-                        <p className="text-sm text-gray-800">
-                          {fieldValue.value || 'Não informado'}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {/* Debug info */}
-              <div className="mt-4 p-2 bg-gray-100 rounded text-xs">
-                <strong>Debug:</strong> Ticket ID: {ticketId} | 
-                Loading: {customFieldsLoading ? 'true' : 'false'} | 
-                Fields Count: {customFieldValues?.length || 0} |
-                Data: {customFieldValues?.length > 0 ? JSON.stringify(customFieldValues.map(f => ({ name: f.customField?.name, value: f.value })), null, 2) : 'Nenhum campo encontrado'}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Form Data Details - Show parsed form data for debugging */}
+          {/* Form Data from Ticket Creation */}
           {parsedFormData && Object.keys(parsedFormData).length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center">
                   <FileText className="w-5 h-5 mr-2" />
-                  Detalhes do Formulário de Abertura
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(parsedFormData).map(([key, value]) => {
-                    // Skip standard fields that are already shown elsewhere
-                    if (['subject', 'description', 'category', 'priority', 'requesterName', 'requesterEmail'].includes(key)) {
-                      return null;
-                    }
-                    
-                    return (
-                      <div key={key} className="space-y-1">
-                        <label className="text-sm font-medium text-gray-600 capitalize">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                        </label>
-                        <div className="bg-gray-50 p-3 rounded border">
-                          <p className="text-sm text-gray-800">
-                            {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value || 'Não informado')}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Debug: Mostrar dados do ticket */}
-          {console.log('Ticket data:', ticket)}
-          {console.log('FormData raw:', ticket.formData)}
-
-          {/* Dados Completos do Formulário Original */}
-          {ticket.formData && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold flex items-center">
-                  <AlertCircle className="w-5 h-5 mr-2" />
-                  Informações Detalhadas do Formulário
+                  Dados do Formulário de Abertura
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {(() => {
-                    try {
-                      const formData = JSON.parse(ticket.formData);
-                      return (
-                        <div className="space-y-4">
-                          {/* Informações Básicas do Solicitante */}
-                          {(formData.fullName || formData.email || formData.phone) && (
-                            <div className="border-b pb-4">
-                              <h4 className="text-sm font-semibold text-gray-800 mb-3">Dados do Solicitante</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                                {formData.fullName && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Nome Completo:</span>
-                                    <span className="font-medium">{formData.fullName}</span>
-                                  </div>
-                                )}
-                                {formData.email && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">E-mail:</span>
-                                    <span className="font-medium">{formData.email}</span>
-                                  </div>
-                                )}
-                                {formData.phone && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Telefone:</span>
-                                    <span className="font-medium">{formData.phone}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
+                  {/* Basic Requester Info */}
+                  {(parsedFormData.fullName || parsedFormData.email || parsedFormData.phone) && (
+                    <div className="border-b pb-4">
+                      <h4 className="text-sm font-semibold text-gray-800 mb-3">Dados do Solicitante</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        {parsedFormData.fullName && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Nome Completo:</span>
+                            <span className="font-medium">{parsedFormData.fullName}</span>
+                          </div>
+                        )}
+                        {parsedFormData.email && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">E-mail:</span>
+                            <span className="font-medium">{parsedFormData.email}</span>
+                          </div>
+                        )}
+                        {parsedFormData.phone && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Telefone:</span>
+                            <span className="font-medium">{parsedFormData.phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Custom Fields from Form */}
+                  {parsedFormData.customFields && Object.keys(parsedFormData.customFields).length > 0 && (
+                    <div className="border-b pb-4">
+                      <h4 className="text-sm font-semibold text-gray-800 mb-3">Perguntas Específicas da Categoria (Formulário)</h4>
+                      <div className="space-y-3">
+                        {Object.entries(parsedFormData.customFields).map(([fieldId, value]) => {
+                          const fieldNameMap = {
+                            'a9a261ac-57aa-4f03-941e-e2e31219be88': 'Justificativa de Negócio',
+                            'e3db291f-5146-404e-9c97-deed94b6062a': 'Módulo do Sistema',
+                            '576d5f9a-4e5d-491b-9d9d-f69a5e048775': 'Passos para Reproduzir',
+                            '2723bfa7-97ec-4ede-9cd4-66e96333d8e8': 'Versão do Sistema',
+                            'b9029d66-e6f8-445a-b162-b9b2e8eb6229': 'Navegador',
+                            'e69761b7-4633-469f-ab77-81a31e6e8748': 'Tipo de Equipamento',
+                            '7ce8caaa-0e67-4e2f-ac76-d60f80fcaea4': 'Número do Patrimônio',
+                            'ae979ad3-afdb-47ab-8996-320e6aea2994': 'CPF do Funcionário',
+                            'e808f2c5-809c-4477-82ab-c0f778b2f762': 'Período de Referência'
+                          };
                           
-                          {/* Campos Customizados da Categoria */}
-                          {formData.customFields && Object.keys(formData.customFields).length > 0 && (
-                            <div className="border-b pb-4">
-                              <h4 className="text-sm font-semibold text-gray-800 mb-3">Perguntas Específicas da Categoria</h4>
-                              <div className="space-y-3">
-                                {Object.entries(formData.customFields).map(([fieldId, value]) => {
-                                  // Mapeamento direto dos IDs para nomes conhecidos
-                                  const fieldNameMap = {
-                                    'a9a261ac-57aa-4f03-941e-e2e31219be88': 'Justificativa de Negócio',
-                                    'e3db291f-5146-404e-9c97-deed94b6062a': 'Módulo do Sistema',
-                                    '576d5f9a-4e5d-491b-9d9d-f69a5e048775': 'Passos para Reproduzir',
-                                    '2723bfa7-97ec-4ede-9cd4-66e96333d8e8': 'Versão do Sistema',
-                                    'b9029d66-e6f8-445a-b162-b9b2e8eb6229': 'Navegador',
-                                    'e69761b7-4633-469f-ab77-81a31e6e8748': 'Tipo de Equipamento',
-                                    '7ce8caaa-0e67-4e2f-ac76-d60f80fcaea4': 'Número do Patrimônio',
-                                    'ae979ad3-afdb-47ab-8996-320e6aea2994': 'CPF do Funcionário',
-                                    'e808f2c5-809c-4477-82ab-c0f778b2f762': 'Período de Referência'
-                                  };
-                                  
-                                  const displayName = fieldNameMap[fieldId as keyof typeof fieldNameMap] || `Campo ${fieldId.substring(0, 8)}...`;
-                                  
-                                  return (
-                                    <div key={fieldId} className="flex flex-col space-y-2">
-                                      <span className="text-sm font-semibold text-blue-700">{displayName}:</span>
-                                      <div className="text-sm text-gray-900 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
-                                        {typeof value === 'string' && value.includes('\n') ? (
-                                          <pre className="whitespace-pre-wrap text-sm">{value}</pre>
-                                        ) : (
-                                          <span className="text-sm font-medium">{value || 'Não informado'}</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                }) || []}
-                              </div>
-                            </div>
-                          )}
+                          const displayName = fieldNameMap[fieldId as keyof typeof fieldNameMap] || `Campo ${fieldId.substring(0, 8)}...`;
                           
-                          {/* Outros dados do formulário */}
-                          {formData.originalRequestBody && (
-                            <div>
-                              <h4 className="text-sm font-semibold text-gray-800 mb-3">Informações Adicionais</h4>
-                              <div className="space-y-2 text-sm">
-                                {Object.entries(formData.originalRequestBody).map(([key, value]) => {
-                                  // Pular campos que já foram exibidos
-                                  if (['subject', 'description', 'priority', 'fullName', 'email', 'phone', 'customFields'].includes(key)) {
-                                    return null;
-                                  }
-                                  return (
-                                    <div key={key} className="flex justify-between">
-                                      <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                                      <span className="font-medium max-w-xs text-right">{typeof value === 'string' ? value : JSON.stringify(value)}</span>
-                                    </div>
-                                  );
-                                })}
+                          return (
+                            <div key={fieldId} className="flex flex-col space-y-2">
+                              <span className="text-sm font-semibold text-blue-700">{displayName}:</span>
+                              <div className="text-sm text-gray-900 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
+                                {typeof value === 'string' && (value as string).includes('\n') ? (
+                                  <pre className="whitespace-pre-wrap text-sm">{value}</pre>
+                                ) : (
+                                  <span className="text-sm font-medium">{(value as string) || 'Não informado'}</span>
+                                )}
                               </div>
                             </div>
-                          )}
-                        </div>
-                      );
-                    } catch (e) {
-                      return <p className="text-sm text-gray-500">Dados do formulário não disponíveis</p>;
-                    }
-                  })()}
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           )}
 
           {/* Comments Section */}
-          {comments && comments.length > 0 && (
+          {comments.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -630,12 +751,12 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
             </Card>
           )}
 
-          {/* Timeline */}
+          {/* Timeline and SLA */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Clock className="w-5 h-5 mr-2" />
-                Histórico
+                Histórico e SLA
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -699,14 +820,70 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
                     />
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Meta: {ticket.slaHoursTotal || 4}h ({(ticket.slaSource || 'padrão').includes('regra SLA') ? 'configurado' : (ticket.slaSource || 'padrão').replace('padrão (', '').replace(')', '').replace('h', '')})
+                    Meta: {ticket.slaHoursTotal || 4}h ({(ticket.slaSource || 'padrão').includes('regra SLA') ? 'configurado' : 'padrão'})
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-
+          {/* Debug Information Panel */}
+          <Card className="border-gray-300">
+            <CardHeader>
+              <CardTitle className="flex items-center text-sm">
+                <Database className="w-4 h-4 mr-2" />
+                Informações de Debug
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                <div>
+                  <span className="font-medium">Total Requisições:</span>
+                  <p>{debugInfo.totalRequests}</p>
+                </div>
+                <div>
+                  <span className="font-medium">Ticket:</span>
+                  <p className={debugInfo.ticketLoaded ? 'text-green-600' : 'text-red-600'}>
+                    {debugInfo.ticketLoaded ? '✅ Carregado' : '❌ Erro'}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium">Campos Customizados:</span>
+                  <p className={debugInfo.customFieldsLoaded ? 'text-green-600' : 'text-red-600'}>
+                    {debugInfo.customFieldsLoaded ? `✅ ${customFields.length} campos` : '❌ Erro'}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium">Comentários:</span>
+                  <p className={debugInfo.commentsLoaded ? 'text-green-600' : 'text-red-600'}>
+                    {debugInfo.commentsLoaded ? `✅ ${comments.length} comentários` : '❌ Erro'}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium">Usuários:</span>
+                  <p className={debugInfo.usersLoaded ? 'text-green-600' : 'text-red-600'}>
+                    {debugInfo.usersLoaded ? `✅ ${assignableUsers.length} usuários` : '❌ Erro'}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium">Configurações:</span>
+                  <p className={debugInfo.configsLoaded ? 'text-green-600' : 'text-red-600'}>
+                    {debugInfo.configsLoaded ? '✅ Carregadas' : '❌ Erro'}
+                  </p>
+                </div>
+              </div>
+              {debugInfo.errors.length > 0 && (
+                <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                  <p className="text-xs font-medium text-red-800 mb-1">Erros:</p>
+                  <ul className="text-xs text-red-700 space-y-1">
+                    {debugInfo.errors.map((error, index) => (
+                      <li key={index}>• {error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Action Buttons */}
           <div className="flex justify-between pt-4 border-t">
@@ -719,7 +896,6 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
               </Button>
               <Button 
                 onClick={() => {
-                  // Navegar para a página do Kanban
                   window.location.href = '/tickets';
                   onClose();
                 }}
