@@ -224,25 +224,41 @@ export async function mockAuth(req: Request, res: Response, next: NextFunction) 
     const { storage } = await import('../storage');
     const authReq = req as AuthenticatedRequest;
     
-    // Buscar usuário administrador real do banco (role 'admin' ou 'administrador')
+    // Para demo, simular diferentes usuários baseado no contexto da requisição
+    // Em produção, isso viria da sessão/token
     const allUsers = await storage.getAllUsers();
-    const adminUser = allUsers.find(user => user.role === 'admin' || user.role === 'administrador');
+    
+    // Por padrão usar admin, mas permitir override via header para testes
+    const testUserId = req.headers['x-test-user-id'] as string;
+    const testUserRole = req.headers['x-test-user-role'] as string;
+    
+    let currentUser;
+    
+    if (testUserId) {
+      currentUser = allUsers.find(user => user.id === testUserId);
+    } else if (testUserRole) {
+      currentUser = allUsers.find(user => user.role === testUserRole);
+    } else {
+      // Default: usar admin
+      currentUser = allUsers.find(user => user.role === 'admin' || user.role === 'administrador');
+    }
     
     console.log('MockAuth Debug:', {
       totalUsers: allUsers.length,
-      adminUserFound: !!adminUser,
-      adminUserRole: adminUser?.role
+      currentUserFound: !!currentUser,
+      currentUserRole: currentUser?.role,
+      requestHeaders: { testUserId, testUserRole }
     });
     
-    if (adminUser) {
+    if (currentUser) {
       authReq.user = {
-        id: adminUser.id,
-        role: adminUser.role as UserRole,
-        departmentId: adminUser.departmentId || undefined
+        id: currentUser.id,
+        role: currentUser.role as UserRole,
+        departmentId: currentUser.departmentId || undefined
       };
     } else {
       // Fallback para usuário mock admin
-      console.log('No admin user found, using mock admin');
+      console.log('No user found, using mock admin');
       authReq.user = {
         id: 'mock-admin-id',
         role: 'admin',

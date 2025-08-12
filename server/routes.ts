@@ -120,33 +120,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Apply hierarchy-based filtering for non-admin users
       if (user) {
-        const userHierarchy = user.hierarchy || user.role;
-        const userId = user.userId || user.id;
+        const userRole = user.role;
+        const userId = user.id;
         
-        if (userHierarchy === 'colaborador' || userHierarchy === 'solicitante' || userHierarchy === 'atendente') {
-          // Usuários básicos veem seus próprios tickets + tickets não atribuídos do departamento
+        console.log(`Filtering tickets for user: ${userId}, role: ${userRole}`);
+        
+        if (userRole === 'solicitante') {
+          // Solicitantes só veem seus próprios tickets
+          console.log('Applying solicitante filter - own tickets only');
+          const tickets = await storage.getTicketsByUser(userId);
+          const ownTickets = tickets.filter(ticket => ticket.createdBy === userId);
+          console.log(`Solicitante ${userId} can see ${ownTickets.length} own tickets`);
+          res.json(ownTickets);
+          return;
+        } else if (userRole === 'atendente') {
+          // Atendentes veem tickets do departamento + próprios
+          console.log('Applying atendente filter - department + own tickets');
           const userRecord = await storage.getUser(userId);
           if (userRecord?.departmentId) {
-            filters.colaboradorFilter = {
-              userId: userId,
-              departmentId: userRecord.departmentId
-            };
+            const tickets = await storage.getTicketsByUser(userId);
+            const departmentTickets = tickets.filter(ticket => 
+              ticket.requesterDepartmentId === userRecord.departmentId || 
+              ticket.responsibleDepartmentId === userRecord.departmentId ||
+              ticket.createdBy === userId
+            );
+            console.log(`Atendente ${userId} can see ${departmentTickets.length} department tickets`);
+            res.json(departmentTickets);
+            return;
           } else {
-            // Se não tem departamento, só vê próprios tickets
-            filters.createdBy = userId;
+            const tickets = await storage.getTicketsByUser(userId);
+            const ownTickets = tickets.filter(ticket => ticket.createdBy === userId);
+            res.json(ownTickets);
+            return;
           }
-        } else if (userHierarchy === 'supervisor') {
-          // Supervisores veem tickets do seu departamento inteiro
+        } else if (userRole === 'supervisor') {
+          // Supervisores veem todos os tickets do departamento
+          console.log('Applying supervisor filter - all department tickets');
           const userRecord = await storage.getUser(userId);
           if (userRecord?.departmentId) {
-            filters.departmentId = userRecord.departmentId;
-            // Remove filtro do criador para ver todos do departamento
-            delete filters.createdBy;
+            const allTickets = await storage.getAllTickets();
+            const departmentTickets = allTickets.filter(ticket => 
+              ticket.requesterDepartmentId === userRecord.departmentId || 
+              ticket.responsibleDepartmentId === userRecord.departmentId
+            );
+            console.log(`Supervisor ${userId} can see ${departmentTickets.length} department tickets`);
+            res.json(departmentTickets);
+            return;
           }
         }
       }
       
-      const tickets = await storage.getTicketsByUser(user?.id || "mock-user-id");
+      // Fallback para usuários sem role específico
+      // Fallback - buscar todos os tickets e aplicar filtro local
+      const allTickets = await storage.getAllTickets();
+      const tickets = allTickets.filter(ticket => ticket.createdBy === user?.id);
+      console.log(`User ${user?.id} can see ${tickets.length} tickets (fallback filtering)`);
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);

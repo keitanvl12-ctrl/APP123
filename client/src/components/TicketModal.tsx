@@ -33,8 +33,11 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
     subject: '',
     description: '',
     priority: '',
-    status: ''
+    status: '',
+    assignedTo: ''
   });
+  const [users, setUsers] = useState<any[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false);
   const { toast } = useToast();
 
   const handleDelete = async () => {
@@ -71,7 +74,8 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       subject: ticket.subject || '',
       description: ticket.description || '',
       priority: ticket.priority || '',
-      status: ticket.status || ''
+      status: ticket.status || '',
+      assignedTo: ticket.assignedTo || ''
     });
     setIsEditing(true);
   };
@@ -116,16 +120,18 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       subject: ticket.subject || '',
       description: ticket.description || '',
       priority: ticket.priority || '',
-      status: ticket.status || ''
+      status: ticket.status || '',
+      assignedTo: ticket.assignedTo || ''
     });
   };
 
-  // Buscar campos customizados quando o modal abrir
+  // Buscar campos customizados e usuários quando o modal abrir
   useEffect(() => {
     if (isOpen && ticket?.id) {
       setLoading(true);
       console.log("🔍 Buscando campos customizados para:", ticket.ticketNumber);
       
+      // Buscar campos customizados
       fetch(`/api/tickets/${ticket.id}/custom-fields`, {
         credentials: 'include'
       })
@@ -139,6 +145,19 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
           console.error("❌ Erro ao buscar campos customizados:", err);
           setCustomFields([]);
           setLoading(false);
+        });
+
+      // Buscar usuários para atribuição
+      fetch('/api/users', {
+        credentials: 'include'
+      })
+        .then(res => res.json())
+        .then(data => {
+          setUsers(data || []);
+        })
+        .catch(err => {
+          console.error("❌ Erro ao buscar usuários:", err);
+          setUsers([]);
         });
     }
   }, [isOpen, ticket?.id]);
@@ -421,7 +440,26 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Responsável</label>
-                    <p className="text-sm text-gray-900">{ticket.assignedToUser?.name || 'Não atribuído'}</p>
+                    {isEditing ? (
+                      <Select 
+                        value={editData.assignedTo} 
+                        onValueChange={(value) => setEditData(prev => ({ ...prev, assignedTo: value }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Selecionar responsável" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Não atribuído</SelectItem>
+                          {users.map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name} ({user.role})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-sm text-gray-900">{ticket.assignedToUser?.name || 'Não atribuído'}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Solicitante</label>

@@ -6,6 +6,7 @@ import { Ticket, Hourglass, CheckCircle, Clock, AlertTriangle, TrendingUp, Users
 import StatsCard from "@/components/StatsCard";
 import TicketTrendsChart from "@/components/TicketTrendsChart";
 import PriorityBreakdown from "@/components/PriorityBreakdown";
+import UserSelector from "@/components/UserSelector";
 // Removed RecentTicketsTable as requested
 import { Search, Filter, Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -126,6 +127,11 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 bg-background min-h-screen">
+      {/* Seletor de Usuário para Desenvolvimento */}
+      <UserSelector onUserChange={(userId, userRole) => {
+        console.log('Usuário simulado alterado:', { userId, userRole });
+      }} />
+      
       {/* Header with filters */}
       <div className="flex justify-between items-center mb-8">
         <div>
