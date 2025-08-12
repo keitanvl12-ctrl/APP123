@@ -55,6 +55,24 @@ router.get('/roles/:roleId', async (req, res) => {
   }
 });
 
+// Buscar todas as permissões disponíveis - endpoint simples para RoleManagement
+router.get('/', async (req, res) => {
+  try {
+    const basicPermissions = [
+      { id: '1', code: 'criar_tickets', name: 'Criar Tickets', category: 'tickets' },
+      { id: '2', code: 'ver_proprios_tickets', name: 'Ver Próprios Tickets', category: 'tickets' },
+      { id: '3', code: 'ver_todos_tickets', name: 'Ver Todos os Tickets', category: 'tickets' },
+      { id: '4', code: 'editar_tickets', name: 'Editar Tickets', category: 'tickets' },
+      { id: '5', code: 'gerenciar_usuarios', name: 'Gerenciar Usuários', category: 'usuarios' },
+      { id: '6', code: 'gerenciar_configuracoes', name: 'Gerenciar Configurações', category: 'sistema' }
+    ];
+    res.json(basicPermissions);
+  } catch (error) {
+    console.error('Erro ao buscar permissões:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
 // Buscar todas as permissões disponíveis
 router.get('/all', async (req, res) => {
   try {

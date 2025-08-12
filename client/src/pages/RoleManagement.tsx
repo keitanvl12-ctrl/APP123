@@ -39,15 +39,22 @@ export default function RoleManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Buscar funções
-  const { data: roles = [], isLoading: rolesLoading } = useQuery({
+  // Buscar funções do sistema
+  const { data: roles = [], isLoading: rolesLoading, refetch: refetchRoles } = useQuery({
     queryKey: ['/api/roles'],
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Buscar todas as permissões disponíveis
   const { data: allPermissions = [], isLoading: permissionsLoading } = useQuery({
     queryKey: ['/api/permissions'],
+    refetchOnMount: true,
   });
+
+  // Debug: Log data
+  console.log('Roles data received:', roles);
+  console.log('Permissions data received:', allPermissions);
 
   // Mutation para criar função
   const createRoleMutation = useMutation({
