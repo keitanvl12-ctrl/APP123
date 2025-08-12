@@ -1166,20 +1166,65 @@ export class DatabaseStorage implements IStorage {
       
 
 
-      // Calcular tempo decorrido desde a criação até agora ou até resolução
+      // Calcular tempo decorrido considerando pausas
       const now = new Date();
       const createdAt = new Date(ticket.createdAt);
       const endTime = (ticket.status === 'resolved' || ticket.status === 'closed') && ticket.resolvedAt 
         ? new Date(ticket.resolvedAt) 
         : now;
       
+      // Buscar registros de pausa para este ticket
+      const pauseRecords = await this.getTicketPauseRecords(ticket.id);
+      
+      // Calcular tempo total pausado em milissegundos
+      let totalPausedMilliseconds = 0;
+      
+      for (const pause of pauseRecords) {
+        const pausedAt = new Date(pause.pausedAt);
+        let resumedAt: Date;
+        
+        if (pause.resumedAt) {
+          // Pausa já foi retomada
+          resumedAt = new Date(pause.resumedAt);
+        } else if (pause.expectedReturnAt) {
+          // Pausa ainda ativa - usar tempo esperado ou tempo atual, o que for menor
+          const expectedReturn = new Date(pause.expectedReturnAt);
+          resumedAt = expectedReturn < now ? expectedReturn : now;
+        } else {
+          // Pausa sem tempo esperado - considerar pausado até agora
+          resumedAt = now;
+        }
+        
+        // Calcular tempo efetivo da pausa (apenas dentro do período do ticket)
+        const effectivePauseStart = pausedAt > createdAt ? pausedAt : createdAt;
+        const effectivePauseEnd = resumedAt < endTime ? resumedAt : endTime;
+        
+        if (effectivePauseEnd > effectivePauseStart) {
+          totalPausedMilliseconds += effectivePauseEnd.getTime() - effectivePauseStart.getTime();
+        }
+      }
+      
       const elapsedMilliseconds = endTime.getTime() - createdAt.getTime();
-      const elapsedHours = elapsedMilliseconds / (1000 * 60 * 60);
+      const effectiveMilliseconds = elapsedMilliseconds - totalPausedMilliseconds;
+      const effectiveHours = Math.max(0, effectiveMilliseconds / (1000 * 60 * 60));
 
-      // Calcular progresso SLA corretamente
-      const remainingHours = Math.max(0, slaHours - elapsedHours);
-      const progressPercentage = (elapsedHours / slaHours) * 100;
+      // Calcular progresso SLA baseado no tempo efetivo (descontando pausas)
+      const remainingHours = Math.max(0, slaHours - effectiveHours);
+      const progressPercentage = (effectiveHours / slaHours) * 100;
       const cappedProgressPercentage = Math.max(0, Math.min(progressPercentage, 100));
+      
+      // Debug log para tickets pausados
+      if (pauseRecords.length > 0 && ticket.ticketNumber) {
+        console.log(`🟡 PAUSED TICKET ${ticket.ticketNumber}:`, {
+          totalElapsedHours: Math.round((elapsedMilliseconds / (1000 * 60 * 60)) * 100) / 100,
+          totalPausedHours: Math.round((totalPausedMilliseconds / (1000 * 60 * 60)) * 100) / 100,
+          effectiveHours: Math.round(effectiveHours * 100) / 100,
+          slaHours,
+          progressPercentage: Math.round(progressPercentage * 100) / 100,
+          pauseRecordsCount: pauseRecords.length,
+          status: ticket.status
+        });
+      }
 
       // Determinar status SLA
       let slaStatus: 'met' | 'at_risk' | 'violated';
@@ -1205,7 +1250,7 @@ export class DatabaseStorage implements IStorage {
         slaHoursRemaining: remainingHours,
         slaHoursTotal: slaHours,
         slaProgressPercent: cappedProgressPercentage,
-        slaElapsedHours: Math.round(elapsedHours * 100) / 100,
+        slaElapsedHours: Math.round(effectiveHours * 100) / 100,
         slaSource
       };
       
