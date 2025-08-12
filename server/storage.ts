@@ -1262,10 +1262,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTicket(id: string, updates: Partial<InsertTicket>): Promise<Ticket | undefined> {
+    // Convert string timestamps to Date objects for database storage
+    const processedUpdates = { ...updates };
+    
+    // Convert pausedAt string to Date if present
+    if (processedUpdates.pausedAt && typeof processedUpdates.pausedAt === 'string') {
+      processedUpdates.pausedAt = new Date(processedUpdates.pausedAt);
+    }
+    
+    // Convert resolvedAt string to Date if present
+    if (processedUpdates.resolvedAt && typeof processedUpdates.resolvedAt === 'string') {
+      processedUpdates.resolvedAt = new Date(processedUpdates.resolvedAt);
+    }
+    
     const [updatedTicket] = await db
       .update(tickets)
       .set({ 
-        ...updates, 
+        ...processedUpdates, 
         updatedAt: new Date(),
         ...(updates.status === 'resolved' ? { resolvedAt: new Date() } : {}),
       })

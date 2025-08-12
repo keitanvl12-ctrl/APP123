@@ -280,14 +280,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("PATCH /api/tickets/:id - Request body:", req.body);
       console.log("PATCH /api/tickets/:id - Ticket ID:", req.params.id);
       
-      // Convert timestamp fields from ISO strings to Date objects before validation
+      // Keep timestamp fields as strings for validation
       const processedData = { ...req.body };
-      if (processedData.pausedAt && typeof processedData.pausedAt === 'string') {
-        processedData.pausedAt = new Date(processedData.pausedAt);
-      }
-      if (processedData.resolvedAt && typeof processedData.resolvedAt === 'string') {
-        processedData.resolvedAt = new Date(processedData.resolvedAt);
-      }
       
       const validatedData = updateTicketSchema.parse(processedData);
       console.log("PATCH /api/tickets/:id - Validated data:", validatedData);

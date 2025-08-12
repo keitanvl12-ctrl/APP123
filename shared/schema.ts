@@ -317,8 +317,8 @@ export type InsertSlaTracking = typeof slaTracking.$inferInsert;
 // Update Ticket Schema with pause fields
 export const updateTicketSchema = insertTicketSchema.partial().extend({
   pauseReason: z.string().optional(),
-  pausedAt: z.union([z.string(), z.null()]).optional(), // Accept string or null
-  resolvedAt: z.union([z.string(), z.null()]).optional(), // Accept string or null  
+  pausedAt: z.string().datetime().optional().nullable(), // Accept ISO datetime string or null
+  resolvedAt: z.string().datetime().optional().nullable(), // Accept ISO datetime string or null  
 });
 
 export type UpdateTicket = z.infer<typeof updateTicketSchema>;
