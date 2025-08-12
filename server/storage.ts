@@ -1226,6 +1226,45 @@ export class DatabaseStorage implements IStorage {
       }).returning();
       
       console.log('Created ticket:', newTicket);
+      
+      // Salvar campos customizados se houver
+      if (ticket.formData) {
+        try {
+          const formData = JSON.parse(ticket.formData);
+          console.log('🔍 Form data parsed:', formData);
+          
+          if (formData.customFields && typeof formData.customFields === 'object') {
+            console.log('💾 Custom fields found in form data:', formData.customFields);
+            
+            const customFieldEntries = Object.entries(formData.customFields);
+            console.log('📝 Custom field entries to save:', customFieldEntries);
+            
+            for (const [fieldId, value] of customFieldEntries) {
+              if (value && value !== '') {
+                try {
+                  console.log(`💾 Saving custom field: ${fieldId} = ${value}`);
+                  await db.insert(customFieldValues).values({
+                    ticketId: newTicket.id,
+                    customFieldId: fieldId,
+                    value: String(value),
+                    createdAt: new Date(),
+                  });
+                  console.log(`✅ Custom field saved: ${fieldId}`);
+                } catch (fieldError) {
+                  console.error(`❌ Error saving custom field ${fieldId}:`, fieldError);
+                }
+              }
+            }
+          } else {
+            console.log('ℹ️ No custom fields found in form data');
+          }
+        } catch (parseError) {
+          console.error('❌ Error parsing form data for custom fields:', parseError);
+        }
+      } else {
+        console.log('ℹ️ No form data provided for custom fields');
+      }
+      
       return newTicket;
     } catch (error) {
       console.error('Error in createTicket:', error);
