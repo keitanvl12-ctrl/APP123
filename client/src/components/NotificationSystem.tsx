@@ -50,7 +50,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ isOpen, onClose
   });
 
   useEffect(() => {
-    if (assignedTickets && Array.isArray(assignedTickets)) {
+    if (assignedTickets && Array.isArray(assignedTickets) && assignedTickets.length > 0) {
       // Gerar notificações para tickets atribuídos
       const ticketNotifications: Notification[] = assignedTickets.map((ticket: any) => {
         const createdTime = new Date(ticket.createdAt);
@@ -81,9 +81,18 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ isOpen, onClose
         };
       });
 
-      setNotifications(ticketNotifications);
+      setNotifications(prev => {
+        // Only update if notifications have actually changed
+        const newIds = ticketNotifications.map(n => n.id).sort();
+        const prevIds = prev.map(n => n.id).sort();
+        
+        if (JSON.stringify(newIds) !== JSON.stringify(prevIds)) {
+          return ticketNotifications;
+        }
+        return prev;
+      });
     }
-  }, [assignedTickets]);
+  }, [assignedTickets, currentUser.id]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

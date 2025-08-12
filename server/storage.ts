@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, tickets, comments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues, systemRoles, systemPermissions, rolePermissions } from "@shared/schema";
+import { users, tickets, comments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues } from "@shared/schema";
 import { eq, desc, count, sql, and, gte, lte, or, isNull, ne } from "drizzle-orm";
 import {
   type User,
@@ -480,32 +480,7 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  // Permissions methods
-  async getAllPermissions(): Promise<Permission[]> {
-    return await db.select().from(permissions);
-  }
-
-  async getPermissionByRole(role: string): Promise<Permission | undefined> {
-    const [permission] = await db.select().from(permissions).where(eq(permissions.role, role));
-    return permission || undefined;
-  }
-
-  async createPermission(permissionData: InsertPermission): Promise<Permission> {
-    const [permission] = await db
-      .insert(permissions)
-      .values(permissionData)
-      .returning();
-    return permission;
-  }
-
-  async updatePermission(role: string, permissionData: Partial<InsertPermission>): Promise<Permission | undefined> {
-    const [permission] = await db
-      .update(permissions)
-      .set({ ...permissionData, updatedAt: new Date() })
-      .where(eq(permissions.role, role))
-      .returning();
-    return permission || undefined;
-  }
+  // Permission methods removed - using simple role-based access control
 
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await db.insert(users).values(user).returning();
@@ -858,7 +833,7 @@ export class DatabaseStorage implements IStorage {
       // Filtrar usuários baseado no role - todos os roles principais podem ser responsáveis
       const assignableUsers = allUsers.filter(user => {
         // Admin, supervisor e colaborador podem ser responsáveis por tickets
-        const canBeAssigned = ['admin', 'supervisor', 'colaborador'].includes(user.role);
+        const canBeAssigned = ['admin', 'supervisor', 'atendente'].includes(user.role);
         console.log(`Usuario ${user.name} (${user.role}): pode ser responsável? ${canBeAssigned}`);
         return canBeAssigned;
       });
