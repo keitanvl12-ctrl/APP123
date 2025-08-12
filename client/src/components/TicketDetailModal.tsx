@@ -116,16 +116,30 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
 
   // Buscar valores dos campos customizados do ticket
   const { data: customFieldValues, isLoading: customFieldsLoading, error: customFieldsError } = useQuery<any[]>({
-    queryKey: ['/api/tickets', ticketId, 'custom-fields'],
+    queryKey: ['/api/tickets', ticketId, 'custom-fields', Date.now()], // Force fresh data with timestamp
     enabled: isOpen && !!ticketId,
     staleTime: 0,
-    cacheTime: 0,
+    gcTime: 0, // React Query v5 usa gcTime em vez de cacheTime
+    refetchOnMount: true,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
   });
 
   console.log("🔍 Custom field values for ticket", ticketId, ":", customFieldValues);
   console.log("🔍 Query enabled:", isOpen && !!ticketId);
   console.log("🔍 Loading state:", customFieldsLoading);
   console.log("🔍 Error state:", customFieldsError);
+  
+  // Teste direto da API quando o modal abrir
+  useEffect(() => {
+    if (isOpen && ticketId) {
+      console.log("🔍 Testing direct API call for ticket:", ticketId);
+      fetch(`/api/tickets/${ticketId}/custom-fields`)
+        .then(res => res.json())
+        .then(data => console.log("🔍 Direct API response:", data))
+        .catch(err => console.error("🔍 Direct API error:", err));
+    }
+  }, [isOpen, ticketId]);
 
   if (ticketLoading) {
     return (
