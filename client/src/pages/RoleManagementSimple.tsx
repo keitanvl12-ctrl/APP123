@@ -80,8 +80,8 @@ export default function RoleManagementSimple() {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
-      return apiRequest(`/api/permissions/roles/${id}`, {
+    mutationFn: async ({ roleId, ...updates }: { roleId: string; name: string; description: string; permissions: string[] }) => {
+      return apiRequest(`/api/permissions/roles/${roleId}`, {
         method: 'PUT',
         body: JSON.stringify(updates),
         headers: { 'Content-Type': 'application/json' },
@@ -209,12 +209,10 @@ export default function RoleManagementSimple() {
     if (!editingRole) return;
 
     updateRoleMutation.mutate({
-      id: editingRole.id,
-      updates: {
-        name: roleName,
-        description: roleDescription,
-        permissions: selectedPermissions,
-      },
+      roleId: editingRole.id,
+      name: editingRole.isSystem ? editingRole.name : roleName,
+      description: editingRole.isSystem ? editingRole.description : roleDescription,
+      permissions: selectedPermissions,
     });
   };
 
