@@ -204,6 +204,12 @@ export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues
   createdAt: true,
 });
 
+// Export types for custom fields
+export type CustomField = typeof customFields.$inferSelect;
+export type InsertCustomField = typeof insertCustomFieldSchema._type;
+export type CustomFieldValue = typeof customFieldValues.$inferSelect;
+export type InsertCustomFieldValue = typeof insertCustomFieldValueSchema._type;
+
 export const insertCommentSchema = createInsertSchema(comments).omit({
   id: true,
   createdAt: true,

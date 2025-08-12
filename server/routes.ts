@@ -821,6 +821,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get custom field values for a ticket
+  app.get("/api/tickets/:ticketId/custom-fields", async (req, res) => {
+    try {
+      const customFieldValues = await storage.getCustomFieldValuesByTicket(req.params.ticketId);
+      res.json(customFieldValues);
+    } catch (error) {
+      console.error("Error fetching custom field values:", error);
+      res.status(500).json({ message: "Failed to fetch custom field values" });
+    }
+  });
+
   // Endpoint para notificações
   app.get('/api/notifications', async (req, res) => {
     try {

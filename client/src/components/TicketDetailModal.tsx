@@ -115,10 +115,12 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
   });
 
   // Buscar valores dos campos customizados do ticket
-  const { data: customFieldValues } = useQuery<any[]>({
+  const { data: customFieldValues, isLoading: customFieldsLoading } = useQuery<any[]>({
     queryKey: ['/api/tickets', ticketId, 'custom-fields'],
     enabled: isOpen && !!ticketId,
   });
+
+  console.log("Custom field values:", customFieldValues);
 
   if (ticketLoading) {
     return (
@@ -373,6 +375,69 @@ export default function TicketDetailModal({ ticketId, isOpen, onClose }: TicketD
               </div>
             </div>
           </div>
+
+          {/* Custom Fields from Category */}
+          {customFieldValues && customFieldValues.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <FileText className="w-5 h-5 mr-2" />
+                  Informações Específicas da Categoria
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {customFieldValues.map((fieldValue: any) => (
+                    <div key={fieldValue.id} className="space-y-1">
+                      <label className="text-sm font-medium text-gray-600">
+                        {fieldValue.customField?.name || 'Campo personalizado'}
+                      </label>
+                      <div className="bg-gray-50 p-3 rounded border">
+                        <p className="text-sm text-gray-800">
+                          {fieldValue.value || 'Não informado'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Form Data Details - Show parsed form data for debugging */}
+          {parsedFormData && Object.keys(parsedFormData).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold flex items-center">
+                  <FileText className="w-5 h-5 mr-2" />
+                  Detalhes do Formulário de Abertura
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.entries(parsedFormData).map(([key, value]) => {
+                    // Skip standard fields that are already shown elsewhere
+                    if (['subject', 'description', 'category', 'priority', 'requesterName', 'requesterEmail'].includes(key)) {
+                      return null;
+                    }
+                    
+                    return (
+                      <div key={key} className="space-y-1">
+                        <label className="text-sm font-medium text-gray-600 capitalize">
+                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                        </label>
+                        <div className="bg-gray-50 p-3 rounded border">
+                          <p className="text-sm text-gray-800">
+                            {typeof value === 'object' ? JSON.stringify(value, null, 2) : (value || 'Não informado')}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Debug: Mostrar dados do ticket */}
           {console.log('Ticket data:', ticket)}

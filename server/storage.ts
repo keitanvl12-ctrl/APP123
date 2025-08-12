@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, tickets, comments, attachments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, permissions } from "@shared/schema";
+import { users, tickets, comments, attachments, departments, categories, slaRules, statusConfig, priorityConfig, customFields, customFieldValues, permissions } from "@shared/schema";
 import { eq, desc, count, sql, and, gte, lte, or, isNull, ne } from "drizzle-orm";
 import {
   type User,
@@ -26,6 +26,8 @@ import {
   type TrendData,
   type CustomField,
   type InsertCustomField,
+  type CustomFieldValue,
+  type InsertCustomFieldValue,
   type Permission,
   type InsertPermission,
 } from "@shared/schema";
@@ -100,6 +102,12 @@ export interface IStorage {
   createCustomField(field: InsertCustomField): Promise<CustomField>;
   updateCustomField(id: string, updates: Partial<CustomField>): Promise<CustomField | undefined>;
   deleteCustomField(id: string): Promise<boolean>;
+  
+  // Custom Field Values
+  getCustomFieldValuesByTicket(ticketId: string): Promise<(CustomFieldValue & { customField: CustomField })[]>;
+  createCustomFieldValue(value: InsertCustomFieldValue): Promise<CustomFieldValue>;
+  updateCustomFieldValue(id: string, updates: Partial<CustomFieldValue>): Promise<CustomFieldValue | undefined>;
+  deleteCustomFieldValue(id: string): Promise<boolean>;
   
   // Dashboard Real Data
   getTeamPerformance(): Promise<any[]>;
@@ -2437,6 +2445,45 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  // Custom Field Values methods
+  async getCustomFieldValuesByTicket(ticketId: string): Promise<(CustomFieldValue & { customField: CustomField })[]> {
+    try {
+      const results = await db
+        .select()
+        .from(customFieldValues)
+        .leftJoin(customFields, eq(customFieldValues.customFieldId, customFields.id))
+        .where(eq(customFieldValues.ticketId, ticketId));
+      
+      return results.map(row => ({
+        ...row.custom_field_values,
+        customField: row.custom_fields!
+      }));
+    } catch (error) {
+      console.error("Error fetching custom field values:", error);
+      return [];
+    }
+  }
+
+  async createCustomFieldValue(value: InsertCustomFieldValue): Promise<CustomFieldValue> {
+    const [result] = await db.insert(customFieldValues).values(value).returning();
+    return result;
+  }
+
+  async updateCustomFieldValue(id: string, updates: Partial<CustomFieldValue>): Promise<CustomFieldValue | undefined> {
+    const [result] = await db
+      .update(customFieldValues)
+      .set(updates)
+      .where(eq(customFieldValues.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteCustomFieldValue(id: string): Promise<boolean> {
+    const result = await db
+      .delete(customFieldValues)
+      .where(eq(customFieldValues.id, id));
+    return result.rowCount > 0;
+  }
 
 }
 
