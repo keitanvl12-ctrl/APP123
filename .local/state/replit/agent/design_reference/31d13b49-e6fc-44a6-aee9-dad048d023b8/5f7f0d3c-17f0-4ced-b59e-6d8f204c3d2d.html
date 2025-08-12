@@ -1,0 +1,625 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TicketFlow Pro - Enterprise Ticket Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    primary: '#0f62fe',
+                    'primary-hover': '#0050e6',
+                    secondary: '#6f6f6f',
+                    success: '#198038',
+                    warning: '#f1c21b',
+                    error: '#da1e28',
+                    'gray-10': '#f4f4f4',
+                    'gray-20': '#e0e0e0',
+                    'gray-30': '#c6c6c6',
+                    'gray-50': '#8d8d8d',
+                    'gray-70': '#525252',
+                    'gray-90': '#262626',
+                    'gray-100': '#161616'
+                },
+                fontFamily: {
+                    'sans': ['Inter', 'system-ui', 'sans-serif']
+                },
+                animation: {
+                    'fade-in': 'fadeIn 200ms ease-out',
+                    'slide-down': 'slideDown 200ms ease-out'
+                },
+                keyframes: {
+                    fadeIn: {
+                        '0%': { opacity: '0' },
+                        '100%': { opacity: '1' }
+                    },
+                    slideDown: {
+                        '0%': { transform: 'translateY(-4px)', opacity: '0' },
+                        '100%': { transform: 'translateY(0)', opacity: '1' }
+                    }
+                }
+            }
+        }
+    };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-10 text-gray-100 font-sans">
+    <!-- @COMPONENT: AppLayout -->
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- @COMPONENT: Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-20 flex-shrink-0" data-mock="true">
+            <!-- Logo and Brand -->
+            <div class="p-4 border-b border-gray-20">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                        <i class="fas fa-ticket-alt text-white text-sm"></i>
+                    </div>
+                    <span class="text-lg font-semibold text-gray-100">TicketFlow Pro</span>
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <nav class="p-4 space-y-2">
+                <!-- @STATE: activeNav:string = 'dashboard' -->
+                <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-primary/10 text-primary font-medium" data-event="click:setActiveNav('dashboard')">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-70 hover:bg-gray-10 transition-colors" data-event="click:setActiveNav('tickets')">
+                    <i class="fas fa-list"></i>
+                    <span>All Tickets</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-70 hover:bg-gray-10 transition-colors" data-event="click:setActiveNav('board')">
+                    <i class="fas fa-columns"></i>
+                    <span>Kanban Board</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-70 hover:bg-gray-10 transition-colors" data-event="click:setActiveNav('analytics')">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-70 hover:bg-gray-10 transition-colors" data-event="click:setActiveNav('users')">
+                    <i class="fas fa-users"></i>
+                    <span>Team</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-70 hover:bg-gray-10 transition-colors" data-event="click:setActiveNav('settings')">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+
+            <!-- User Profile -->
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-20 bg-white">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white text-sm font-medium">
+                        <span data-bind="user.initials">JD</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-100 truncate" data-bind="user.name">John Doe</p>
+                        <p class="text-xs text-gray-50 truncate" data-bind="user.role">Admin</p>
+                    </div>
+                    <button class="text-gray-50 hover:text-gray-70" data-event="click:openUserMenu">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- @COMPONENT: MainContent -->
+        <main class="flex-1 overflow-hidden flex flex-col">
+            
+            <!-- @COMPONENT: TopBar -->
+            <header class="bg-white border-b border-gray-20 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <h1 class="text-2xl font-semibold text-gray-100">Dashboard</h1>
+                        <div class="text-sm text-gray-50">Welcome back! Here's what's happening with your tickets today.</div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <!-- Search -->
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                placeholder="Search tickets..." 
+                                class="w-64 px-4 py-2 pl-10 bg-gray-10 border border-gray-20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                                data-functionality="Search functionality with debounced API calls"
+                            >
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-50"></i>
+                        </div>
+                        
+                        <!-- Notifications -->
+                        <button class="relative p-2 text-gray-50 hover:text-gray-70 transition-colors" data-event="click:openNotifications">
+                            <i class="fas fa-bell text-lg"></i>
+                            <span class="absolute -top-1 -right-1 bg-error text-white text-xs rounded-full w-5 h-5 flex items-center justify-center" data-bind="notifications.count">3</span>
+                        </button>
+
+                        <!-- Create Ticket Button -->
+                        <button class="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2" data-event="click:openCreateTicketModal">
+                            <i class="fas fa-plus"></i>
+                            <span>Create Ticket</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            <!-- @END_COMPONENT: TopBar -->
+
+            <!-- @COMPONENT: DashboardContent -->
+            <div class="flex-1 overflow-auto p-6">
+                
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- @MAP: statsCards.map(card => ( -->
+                    <div class="bg-white rounded-lg border border-gray-20 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-50 mb-1">Total Tickets</p>
+                                <p class="text-2xl font-semibold text-gray-100" data-bind="stats.totalTickets">1,247</p>
+                                <p class="text-sm text-success mt-1">
+                                    <i class="fas fa-arrow-up mr-1"></i>
+                                    <span data-bind="stats.totalTicketsChange">+12%</span> from last week
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-ticket-alt text-primary"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg border border-gray-20 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-50 mb-1">Open Tickets</p>
+                                <p class="text-2xl font-semibold text-gray-100" data-bind="stats.openTickets">423</p>
+                                <p class="text-sm text-warning mt-1">
+                                    <i class="fas fa-arrow-up mr-1"></i>
+                                    <span data-bind="stats.openTicketsChange">+5%</span> from last week
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-hourglass-half text-warning"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg border border-gray-20 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-50 mb-1">Resolved Today</p>
+                                <p class="text-2xl font-semibold text-gray-100" data-bind="stats.resolvedToday">89</p>
+                                <p class="text-sm text-success mt-1">
+                                    <i class="fas fa-arrow-up mr-1"></i>
+                                    <span data-bind="stats.resolvedTodayChange">+18%</span> from yesterday
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-check-circle text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg border border-gray-20 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-50 mb-1">Avg Response Time</p>
+                                <p class="text-2xl font-semibold text-gray-100" data-bind="stats.avgResponseTime">2.4h</p>
+                                <p class="text-sm text-success mt-1">
+                                    <i class="fas fa-arrow-down mr-1"></i>
+                                    <span data-bind="stats.avgResponseTimeChange">-8%</span> improvement
+                                </p>
+                            </div>
+                            <div class="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-clock text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_MAP )) -->
+                </div>
+
+                <!-- Charts and Recent Activity -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    
+                    <!-- Ticket Trends Chart -->
+                    <div class="bg-white rounded-lg border border-gray-20 p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-lg font-semibold text-gray-100">Ticket Trends</h2>
+                            <select class="text-sm border border-gray-20 rounded-lg px-3 py-1.5 bg-white" data-functionality="Chart time period selector">
+                                <option>Last 7 days</option>
+                                <option>Last 30 days</option>
+                                <option>Last 3 months</option>
+                            </select>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="trendsChart" data-implementation="Implement Chart.js line chart showing ticket creation/resolution trends"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Priority Breakdown -->
+                    <div class="bg-white rounded-lg border border-gray-20 p-6">
+                        <h2 class="text-lg font-semibold text-gray-100 mb-6">Priority Breakdown</h2>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-3 h-3 bg-error rounded-full"></div>
+                                    <span class="text-sm text-gray-70">Critical</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-32 bg-gray-20 rounded-full h-2">
+                                        <div class="bg-error h-2 rounded-full" style="width: 15%" data-bind="priority.critical.percentage"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-100" data-bind="priority.critical.count">23</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-3 h-3 bg-warning rounded-full"></div>
+                                    <span class="text-sm text-gray-70">High</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-32 bg-gray-20 rounded-full h-2">
+                                        <div class="bg-warning h-2 rounded-full" style="width: 35%" data-bind="priority.high.percentage"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-100" data-bind="priority.high.count">87</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-3 h-3 bg-primary rounded-full"></div>
+                                    <span class="text-sm text-gray-70">Medium</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-32 bg-gray-20 rounded-full h-2">
+                                        <div class="bg-primary h-2 rounded-full" style="width: 45%" data-bind="priority.medium.percentage"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-100" data-bind="priority.medium.count">156</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-3 h-3 bg-success rounded-full"></div>
+                                    <span class="text-sm text-gray-70">Low</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-32 bg-gray-20 rounded-full h-2">
+                                        <div class="bg-success h-2 rounded-full" style="width: 25%" data-bind="priority.low.percentage"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-100" data-bind="priority.low.count">89</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Tickets Table -->
+                <div class="bg-white rounded-lg border border-gray-20">
+                    <div class="p-6 border-b border-gray-20">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-semibold text-gray-100">Recent Tickets</h2>
+                            <button class="text-primary hover:text-primary-hover font-medium text-sm" data-event="click:viewAllTickets">
+                                View All <i class="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-gray-20">
+                                    <th class="text-left p-4 text-sm font-medium text-gray-70">Ticket ID</th>
+                                    <th class="text-left p-4 text-sm font-medium text-gray-70">Subject</th>
+                                    <th class="text-left p-4 text-sm font-medium text-gray-70">Status</th>
+                                    <th class="text-left p-4 text-sm font-medium text-gray-70">Priority</th>
+                                    <th class="text-left p-4 text-sm font-medium text-gray-70">Assignee</th>
+                                    <th class="text-left p-4 text-sm font-medium text-gray-70">Created</th>
+                                    <th class="text-left p-4 text-sm font-medium text-gray-70">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- @MAP: recentTickets.map(ticket => ( -->
+                                <tr class="border-b border-gray-20 hover:bg-gray-10 transition-colors" data-event="click:openTicketDetails(ticket.id)">
+                                    <td class="p-4">
+                                        <span class="text-sm font-medium text-primary" data-bind="ticket.id">#TF-1001</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-gray-100" data-bind="ticket.subject">Login authentication issues for mobile app</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning" data-bind="ticket.status">
+                                            In Progress
+                                        </span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-error/10 text-error" data-bind="ticket.priority">
+                                            High
+                                        </span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-white text-xs" data-bind="ticket.assignee.initials">
+                                                SM
+                                            </div>
+                                            <span class="text-sm text-gray-70" data-bind="ticket.assignee.name">Sarah Miller</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-gray-50" data-bind="ticket.createdAt">2 hours ago</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <button class="text-gray-50 hover:text-primary transition-colors" data-event="click:editTicket(ticket.id)" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="text-gray-50 hover:text-primary transition-colors" data-event="click:viewTicket(ticket.id)" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <tr class="border-b border-gray-20 hover:bg-gray-10 transition-colors" data-event="click:openTicketDetails(ticket.id)">
+                                    <td class="p-4">
+                                        <span class="text-sm font-medium text-primary" data-bind="ticket.id">#TF-1002</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-gray-100" data-bind="ticket.subject">Database performance optimization needed</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary" data-bind="ticket.status">
+                                            Open
+                                        </span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning" data-bind="ticket.priority">
+                                            Medium
+                                        </span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-6 h-6 bg-success rounded-full flex items-center justify-center text-white text-xs" data-bind="ticket.assignee.initials">
+                                                AC
+                                            </div>
+                                            <span class="text-sm text-gray-70" data-bind="ticket.assignee.name">Alex Chen</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-gray-50" data-bind="ticket.createdAt">4 hours ago</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <button class="text-gray-50 hover:text-primary transition-colors" data-event="click:editTicket(ticket.id)" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="text-gray-50 hover:text-primary transition-colors" data-event="click:viewTicket(ticket.id)" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <tr class="border-b border-gray-20 hover:bg-gray-10 transition-colors" data-event="click:openTicketDetails(ticket.id)">
+                                    <td class="p-4">
+                                        <span class="text-sm font-medium text-primary" data-bind="ticket.id">#TF-1003</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-gray-100" data-bind="ticket.subject">Email notifications not working properly</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success" data-bind="ticket.status">
+                                            Resolved
+                                        </span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success" data-bind="ticket.priority">
+                                            Low
+                                        </span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-6 h-6 bg-warning rounded-full flex items-center justify-center text-white text-xs" data-bind="ticket.assignee.initials">
+                                                MJ
+                                            </div>
+                                            <span class="text-sm text-gray-70" data-bind="ticket.assignee.name">Mike Johnson</span>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-gray-50" data-bind="ticket.createdAt">1 day ago</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <button class="text-gray-50 hover:text-primary transition-colors" data-event="click:editTicket(ticket.id)" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="text-gray-50 hover:text-primary transition-colors" data-event="click:viewTicket(ticket.id)" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- @END_MAP )) -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: DashboardContent -->
+        </main>
+        <!-- @END_COMPONENT: MainContent -->
+    </div>
+    <!-- @END_COMPONENT: AppLayout -->
+
+    <!-- @COMPONENT: CreateTicketModal -->
+    <!-- @STATE: isCreateTicketModalOpen:boolean = false -->
+    <div id="createTicketModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4" data-implementation="Modal component with backdrop click to close">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in">
+            <div class="p-6 border-b border-gray-20">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-100">Create New Ticket</h2>
+                    <button class="text-gray-50 hover:text-gray-70" data-event="click:closeCreateTicketModal">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <form class="p-6 space-y-6" data-implementation="React Hook Form integration for validation and submission">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-100 mb-2">Subject *</label>
+                        <input 
+                            type="text" 
+                            class="w-full px-3 py-2 border border-gray-20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                            placeholder="Brief description of the issue"
+                            data-validation="required|max:100"
+                        >
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-100 mb-2">Priority *</label>
+                        <select class="w-full px-3 py-2 border border-gray-20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                            <option value="">Select priority</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-100 mb-2">Category</label>
+                        <select class="w-full px-3 py-2 border border-gray-20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                            <option value="">Select category</option>
+                            <option value="bug">Bug Report</option>
+                            <option value="feature">Feature Request</option>
+                            <option value="support">Technical Support</option>
+                            <option value="improvement">Improvement</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-100 mb-2">Assignee</label>
+                        <select class="w-full px-3 py-2 border border-gray-20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+                            <option value="">Auto-assign</option>
+                            <option value="sarah">Sarah Miller</option>
+                            <option value="alex">Alex Chen</option>
+                            <option value="mike">Mike Johnson</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-100 mb-2">Description *</label>
+                    <textarea 
+                        class="w-full px-3 py-2 border border-gray-20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary h-32 resize-none"
+                        placeholder="Detailed description of the issue, steps to reproduce, expected behavior..."
+                        data-validation="required|min:10"
+                    ></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-100 mb-2">Attachments</label>
+                    <div class="border-2 border-dashed border-gray-20 rounded-lg p-6 text-center">
+                        <i class="fas fa-cloud-upload-alt text-3xl text-gray-30 mb-3"></i>
+                        <p class="text-sm text-gray-50 mb-2">Drag and drop files here or click to browse</p>
+                        <input type="file" multiple class="hidden" id="fileUpload" data-implementation="File upload with drag-and-drop functionality">
+                        <button type="button" class="text-primary hover:text-primary-hover font-medium text-sm" onclick="document.getElementById('fileUpload').click()">
+                            Choose Files
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-gray-20">
+                    <button type="button" class="px-4 py-2 text-gray-70 hover:text-gray-100 transition-colors" data-event="click:closeCreateTicketModal">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-primary hover:bg-primary-hover text-white px-6 py-2 rounded-lg font-medium transition-colors" data-event="submit:createTicket">
+                        Create Ticket
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: CreateTicketModal -->
+
+    <script>
+        // TODO: Implement business logic, API calls, and state management
+        
+        (function() {
+            // Initialize charts
+            function initializeCharts() {
+                const ctx = document.getElementById('trendsChart');
+                if (ctx) {
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                            datasets: [{
+                                label: 'Created',
+                                data: [12, 19, 15, 25, 22, 18, 24],
+                                borderColor: '#0f62fe',
+                                backgroundColor: 'rgba(15, 98, 254, 0.1)',
+                                tension: 0.4
+                            }, {
+                                label: 'Resolved',
+                                data: [8, 15, 12, 20, 18, 16, 21],
+                                borderColor: '#198038',
+                                backgroundColor: 'rgba(25, 128, 56, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Modal functionality
+            function setupModals() {
+                const createTicketButtons = document.querySelectorAll('[data-event*="openCreateTicketModal"]');
+                const modal = document.getElementById('createTicketModal');
+                const closeButtons = document.querySelectorAll('[data-event*="closeCreateTicketModal"]');
+
+                createTicketButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        modal.classList.remove('hidden');
+                    });
+                });
+
+                closeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        modal.classList.add('hidden');
+                    });
+                });
+
+                // Close modal on backdrop click
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Initialize everything when DOM is loaded
+            document.addEventListener('DOMContentLoaded', () => {
+                initializeCharts();
+                setupModals();
+            });
+        })();
+    </script>
+</body>
+</html>

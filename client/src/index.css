@@ -1,0 +1,202 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Grupo OPUS Brand Colors */
+    --opus-blue-dark: #2c4257;    /* Azul escuro da logo */
+    --opus-blue-light: #6b8fb0;   /* Azul claro da logo */
+    --opus-blue-accent: #4a6b85;  /* Tom intermediário */
+    --opus-gray-light: #9db4c7;   /* Cinza azulado claro */
+    
+    /* Core Colors - Light Theme com identidade OPUS */
+    --background: #FAFBFC;
+    --foreground: #2c4257;
+    --border: #E2E8F0;
+    --input: #FFFFFF;
+    --ring: #6b8fb0;
+    
+    /* Card Colors */
+    --card: #FFFFFF;
+    --card-foreground: #2c4257;
+    
+    /* Popover Colors */
+    --popover: #FFFFFF;
+    --popover-foreground: #2c4257;
+    
+    /* Muted Colors */
+    --muted: #F8FAFC;
+    --muted-foreground: #334155;
+    
+    /* Primary Colors - Usando azul OPUS */
+    --primary: #2c4257;
+    --primary-foreground: #FFFFFF;
+    --primary-hover: #243549;
+    
+    /* Secondary Colors - Usando azul claro OPUS */
+    --secondary: #6b8fb0;
+    --secondary-foreground: #FFFFFF;
+    --secondary-hover: #5a7a9a;
+    
+    /* Accent Colors - Mantendo tom complementar */
+    --accent: #4a6b85;
+    --accent-foreground: #FFFFFF;
+    --accent-hover: #3d5870;
+    
+    /* Success Colors */
+    --success: #059669;
+    --success-foreground: #FFFFFF;
+    
+    /* Warning Colors */
+    --warning: #D97706;
+    --warning-foreground: #FFFFFF;
+    
+    /* Error/Destructive Colors */
+    --error: #DC2626;
+    --error-foreground: #FFFFFF;
+    --destructive: #DC2626;
+    --destructive-foreground: #FFFFFF;
+    
+    /* Grayscale system */
+    --gray-10: #F8FAFC;
+    --gray-20: #F1F5F9;
+    --gray-30: #E2E8F0;
+    --gray-50: #64748B;
+    --gray-70: #334155;
+    --gray-90: #0F172A;
+    --gray-100: #1E293B;
+    
+    --radius: 0.375rem;
+    --font-sans: 'Inter', system-ui, sans-serif;
+  }
+
+  .dark {
+    /* Core Colors - Dark Theme com identidade OPUS */
+    --background: #0F1419;
+    --foreground: #F8FAFC;
+    --border: #475569;
+    --input: #334155;
+    --ring: #6b8fb0;
+    
+    /* Card Colors */
+    --card: #1E293B;
+    --card-foreground: #F8FAFC;
+    
+    /* Popover Colors */
+    --popover: #1E293B;
+    --popover-foreground: #F8FAFC;
+    
+    /* Muted Colors */
+    --muted: #334155;
+    --muted-foreground: #CBD5E1;
+    
+    /* Primary Colors */
+    --primary: #3B82F6;
+    --primary-foreground: #FFFFFF;
+    --primary-hover: #2563EB;
+    
+    /* Secondary Colors */
+    --secondary: #475569;
+    --secondary-foreground: #FFFFFF;
+    --secondary-hover: #64748B;
+    
+    /* Accent Colors */
+    --accent: #F59E0B;
+    --accent-foreground: #000000;
+    --accent-hover: #FBBF24;
+    
+    /* Success Colors */
+    --success: #10B981;
+    --success-foreground: #FFFFFF;
+    
+    /* Warning Colors */
+    --warning: #F59E0B;
+    --warning-foreground: #000000;
+    
+    /* Error/Destructive Colors */
+    --error: #EF4444;
+    --error-foreground: #FFFFFF;
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    
+    /* Grayscale system - Dark */
+    --gray-10: #0F172A;
+    --gray-20: #1E293B;
+    --gray-30: #334155;
+    --gray-50: #64748B;
+    --gray-70: #94A3B8;
+    --gray-90: #F1F5F9;
+    --gray-100: #F8FAFC;
+  }
+  
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+    line-height: normal;
+    font-family: inherit;
+    margin: unset;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    margin: 0;
+    padding: 0;
+    font-family: Inter;
+  }
+}
+
+@layer utilities {
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .shadow-enterprise {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .shadow-enterprise-lg {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .transition-enterprise {
+    transition: all 200ms ease-out;
+  }
+  
+  .transition-modal {
+    transition: all 300ms ease-in-out;
+  }
+  
+  /* Grupo OPUS Custom Classes */
+  .bg-opus-blue-dark { background-color: var(--opus-blue-dark); }
+  .bg-opus-blue-light { background-color: var(--opus-blue-light); }
+  .bg-opus-blue-accent { background-color: var(--opus-blue-accent); }
+  .text-opus-blue-dark { color: var(--opus-blue-dark); }
+  .text-opus-blue-light { color: var(--opus-blue-light); }
+  .border-opus-blue-dark { border-color: var(--opus-blue-dark); }
+  .hover\:bg-opus-blue-dark:hover { background-color: var(--opus-blue-dark); }
+  .hover\:bg-opus-blue-light:hover { background-color: var(--opus-blue-light); }
+
+  /* Role badge colors - Force display */
+  .bg-purple-100 {
+    background-color: #f3e8ff !important;
+  }
+  .text-purple-800 {
+    color: #6b21a8 !important;
+  }
+  .bg-blue-100 {
+    background-color: #dbeafe !important;
+  }
+  .text-blue-800 {
+    color: #1e40af !important;
+  }
+  .bg-green-100 {
+    background-color: #dcfce7 !important;
+  }
+  .text-green-800 {
+    color: #166534 !important;
+  }
+}

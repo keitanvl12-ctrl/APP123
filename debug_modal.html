@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Modal Structure</title>
+</head>
+<body>
+    <h1>CreateTicketModal Structure Debug</h1>
+    
+    <h2>Expected Structure:</h2>
+    <pre>
+    1. Subject + Priority (grid 2 cols)
+    2. Description (full width)
+    3. Solicitante Info (blue box)
+    4. CATEGORIZAÇÃO SECTION:
+       - Departamento (dropdown)
+       - Categoria (dropdown, depends on department)
+    5. Assignment fields
+    6. File attachments
+    </pre>
+    
+    <h2>Issue:</h2>
+    <p>User reports that the "Departamento" field is not showing in the Categorização section</p>
+    
+    <h2>Debugging Steps:</h2>
+    <ol>
+        <li>Check if departments are loading</li>
+        <li>Check if form field is rendering</li>
+        <li>Check if there are any React errors</li>
+        <li>Verify the modal structure matches expected layout</li>
+    </ol>
+</body>
+</html>
