@@ -136,6 +136,41 @@ router.delete('/roles/:roleId', async (req, res) => {
   }
 });
 
+// Atualizar função
+router.put('/roles/:roleId', async (req, res) => {
+  try {
+    const { roleId } = req.params;
+    const data = createRoleSchema.parse(req.body);
+    
+    // Check if it's a system role - only allow permission updates
+    const systemRoles = ['administrador', 'supervisor', 'atendente', 'solicitante'];
+    if (systemRoles.includes(roleId)) {
+      // For system roles, only update permissions (demo - in real app save to database)
+      const updatedRole = {
+        id: roleId,
+        permissions: data.permissions.length,
+        // Keep other properties unchanged
+      };
+      res.json({ message: 'Permissões da função do sistema atualizadas', role: updatedRole });
+    } else {
+      // For custom roles, allow full update
+      const updatedRole = {
+        id: roleId,
+        name: data.name,
+        description: data.description || '',
+        permissions: data.permissions.length,
+      };
+      res.json({ message: 'Função atualizada com sucesso', role: updatedRole });
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Dados inválidos', errors: error.errors });
+    }
+    console.error('Erro ao atualizar função:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
 router.post('/roles', async (req, res) => {
   try {
     const data = createRoleSchema.parse(req.body);

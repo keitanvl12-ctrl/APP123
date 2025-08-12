@@ -138,8 +138,31 @@ export default function RoleManagementSimple() {
     setEditingRole(role);
     setRoleName(role.name);
     setRoleDescription(role.description);
-    // TODO: Load role permissions
-    setSelectedPermissions([]);
+    
+    // Load existing permissions for the role
+    if (role.isSystem) {
+      // For system roles, load default permissions based on role type
+      const systemPermissions = getSystemRolePermissions(role.id);
+      setSelectedPermissions(systemPermissions);
+    } else {
+      // For custom roles, load from API or keep empty for demo
+      setSelectedPermissions([]);
+    }
+  };
+
+  const getSystemRolePermissions = (roleId: string): string[] => {
+    switch (roleId) {
+      case 'administrador':
+        return ['1', '2', '3', '4', '5', '6']; // All permissions
+      case 'supervisor':
+        return ['1', '2', '3', '4', '5']; // All except system config
+      case 'atendente':
+        return ['1', '2', '3', '4']; // Ticket management
+      case 'solicitante':
+        return ['1', '2']; // Create and view own tickets
+      default:
+        return [];
+    }
   };
 
   const handleCreateRole = () => {
@@ -281,25 +304,27 @@ export default function RoleManagementSimple() {
                     </CardDescription>
                   </div>
                   
-                  {!role.isSystem && (
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => startEdit(role)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => startEdit(role)}
+                      title={role.isSystem ? "Editar permissões" : "Editar função"}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    {!role.isSystem && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteRole(role)}
                         className="text-red-500 hover:text-red-700"
+                        title="Excluir função"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               
@@ -440,30 +465,50 @@ export default function RoleManagementSimple() {
       <Dialog open={!!editingRole} onOpenChange={() => setEditingRole(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar Função: {editingRole?.name}</DialogTitle>
+            <DialogTitle>
+              {editingRole?.isSystem ? 'Configurar Permissões' : 'Editar Função'}: {editingRole?.name}
+            </DialogTitle>
             <DialogDescription>
-              Modifique o nome, descrição e permissões da função.
+              {editingRole?.isSystem 
+                ? 'Configure as permissões desta função do sistema.'
+                : 'Modifique o nome, descrição e permissões da função.'
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-name">Nome da Função</Label>
-              <Input
-                id="edit-name"
-                value={roleName}
-                onChange={(e) => setRoleName(e.target.value)}
-                placeholder="Ex: Gerente de TI"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-description">Descrição</Label>
-              <Textarea
-                id="edit-description"
-                value={roleDescription}
-                onChange={(e) => setRoleDescription(e.target.value)}
-                placeholder="Descreva as responsabilidades desta função..."
-              />
-            </div>
+            {!editingRole?.isSystem && (
+              <>
+                <div>
+                  <Label htmlFor="edit-name">Nome da Função</Label>
+                  <Input
+                    id="edit-name"
+                    value={roleName}
+                    onChange={(e) => setRoleName(e.target.value)}
+                    placeholder="Ex: Gerente de TI"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-description">Descrição</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={roleDescription}
+                    onChange={(e) => setRoleDescription(e.target.value)}
+                    placeholder="Descreva as responsabilidades desta função..."
+                  />
+                </div>
+              </>
+            )}
+            
+            {editingRole?.isSystem && (
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <div className="text-sm text-blue-800 font-medium mb-1">
+                  Função do Sistema: {editingRole.name}
+                </div>
+                <div className="text-xs text-blue-600">
+                  {editingRole.description}
+                </div>
+              </div>
+            )}
             
             <div>
               <Label>Permissões</Label>
@@ -497,7 +542,8 @@ export default function RoleManagementSimple() {
                 onClick={handleUpdateRole}
                 disabled={updateRoleMutation.isPending}
               >
-                {updateRoleMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+                {updateRoleMutation.isPending ? 'Salvando...' : 
+                 editingRole?.isSystem ? 'Salvar Permissões' : 'Salvar Alterações'}
               </Button>
             </div>
           </div>
