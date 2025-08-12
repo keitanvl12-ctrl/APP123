@@ -154,16 +154,17 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
           setLoading(false);
         });
 
-      // Buscar usuários para atribuição
-      fetch('/api/users', {
+      // Buscar usuários atribuíveis (não solicitantes)
+      fetch('/api/users/assignable', {
         credentials: 'include'
       })
         .then(res => res.json())
         .then(data => {
+          console.log("✅ Usuários atribuíveis encontrados:", data);
           setUsers(data || []);
         })
         .catch(err => {
-          console.error("❌ Erro ao buscar usuários:", err);
+          console.error("❌ Erro ao buscar usuários atribuíveis:", err);
           setUsers([]);
         });
     }

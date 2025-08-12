@@ -487,6 +487,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get assignable users (baseado em permissões - não solicitantes)
+  app.get("/api/users/assignable", async (req, res) => {
+    try {
+      const users = await storage.getAssignableUsers();
+      console.log(`Requisição de usuários atribuíveis: ${users.length} encontrados`);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching assignable users:", error);
+      res.status(500).json({ message: "Failed to fetch assignable users" });
+    }
+  });
+
   // Get all roles with user counts
   app.get('/api/roles', async (req, res) => {
     try {

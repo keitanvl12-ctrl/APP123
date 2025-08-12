@@ -40,7 +40,7 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
 
   const { data: users } = useQuery<User[]>({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users/assignable"],
     enabled: isOpen,
   });
 
