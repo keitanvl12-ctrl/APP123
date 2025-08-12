@@ -954,7 +954,7 @@ export default function KanbanBoard() {
                       ticket={ticket} 
                       onUpdate={() => queryClient.invalidateQueries({ queryKey: ['/api/tickets'] })}
                       onEdit={handleEditTicket}
-                      onDelete={handleDeleteTicket}
+                      onDelete={(ticketId) => setDeleteModal({ isOpen: true, ticket: ticket })}
                       userRole={currentUser?.role || 'admin'}
                     >
                       <Card 
@@ -1260,7 +1260,7 @@ export default function KanbanBoard() {
                         ticket={ticket} 
                         onUpdate={() => queryClient.invalidateQueries({ queryKey: ['/api/tickets'] })}
                         onEdit={handleEditTicket}
-                        onDelete={handleDeleteTicket}
+                        onDelete={(ticketId) => setDeleteModal({ isOpen: true, ticket: ticket })}
                         userRole={currentUser?.role || 'admin'}
                       >
                         <Button variant="ghost" size="icon" className="w-8 h-8">
@@ -1287,7 +1287,7 @@ export default function KanbanBoard() {
                           variant="ghost" 
                           size="icon" 
                           className="w-8 h-8 text-red-600 hover:text-red-700"
-                          onClick={() => handleDeleteTicket(ticket.id)}
+                          onClick={() => setDeleteModal({ isOpen: true, ticket: ticket })}
                         >
                           <Trash className="w-4 h-4" />
                         </Button>
