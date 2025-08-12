@@ -2516,6 +2516,65 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async deleteSystemRole(roleId: string): Promise<boolean> {
+    try {
+      console.log(`🗑️ Deleting system role: ${roleId}`);
+      
+      const { pool } = await import("./db");
+      
+      // First delete role permissions
+      await pool.query(`DELETE FROM role_permissions WHERE role_id = $1`, [roleId]);
+      console.log(`🧹 Deleted permissions for role ${roleId}`);
+      
+      // Then delete the role itself  
+      const result = await pool.query(`DELETE FROM system_roles WHERE id = $1 RETURNING id`, [roleId]);
+      
+      const deleted = result.rowCount && result.rowCount > 0;
+      if (deleted) {
+        console.log(`✅ Role ${roleId} deleted successfully`);
+      } else {
+        console.log(`❌ Role ${roleId} not found`);
+      }
+      
+      return deleted;
+    } catch (error) {
+      console.error(`❌ Error deleting system role ${roleId}:`, error);
+      throw error;
+    }
+  }
+
+  async getUserPermissions(userId: string): Promise<string[]> {
+    try {
+      console.log(`🔍 Getting permissions for user ${userId}`);
+      
+      // Get user to find their role
+      const user = await this.getUser(userId);
+      if (!user) {
+        console.log(`❌ User ${userId} not found`);
+        return [];
+      }
+      
+      console.log(`👤 User ${userId} has role: ${user.role}`);
+      
+      // Get permissions for the user's role using pool for compatibility
+      const { pool } = await import("./db");
+      const result = await pool.query(`
+        SELECT sp.code 
+        FROM role_permissions rp
+        JOIN system_permissions sp ON rp.permission_id = sp.id
+        WHERE rp.role_id = $1
+      `, [user.role]);
+      
+      const permissions = result.rows.map(row => row.code);
+      console.log(`🔑 User ${userId} permissions:`, permissions);
+      
+      return permissions;
+    } catch (error) {
+      console.error(`❌ Error getting permissions for user ${userId}:`, error);
+      return [];
+    }
+  }
+
   async getAllRoles(): Promise<any[]> {
     try {
       console.log('🔍 Getting all system roles');
@@ -2844,36 +2903,7 @@ export class DatabaseStorage implements IStorage {
     return role;
   }
 
-  async deleteSystemRole(id: string): Promise<boolean> {
-    try {
-      // Verificar se é uma função do sistema que não pode ser deletada
-      const role = await this.getSystemRoleById(id);
-      if (!role) return false;
-
-      if (role.isSystemRole) {
-        throw new Error('Funções do sistema não podem ser deletadas');
-      }
-
-      // Verificar se há usuários usando esta função
-      const usersWithRole = await db.select({ count: count() })
-        .from(users)
-        .where(eq(users.roleId, id));
-
-      if (usersWithRole[0].count > 0) {
-        throw new Error('Não é possível deletar função que possui usuários associados');
-      }
-
-      // Deletar permissões associadas
-      await db.delete(rolePermissions).where(eq(rolePermissions.roleId, id));
-
-      // Deletar função
-      await db.delete(systemRoles).where(eq(systemRoles.id, id));
-      return true;
-    } catch (error) {
-      console.error('Erro ao deletar função:', error);
-      return false;
-    }
-  }
+  // Removed duplicate method - using the pool version at line 2519
 
   async getSystemPermissions(): Promise<SystemPermission[]> {
     return db.select().from(systemPermissions).orderBy(systemPermissions.category, systemPermissions.name);

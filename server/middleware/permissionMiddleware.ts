@@ -1,284 +1,130 @@
-import { Request, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { storage } from '../storage';
+import { AuthenticatedRequest } from './authMiddleware';
 
-// Definir hierarquia de roles
-const ROLE_HIERARCHY = {
-  solicitante: 0,
-  atendente: 1,
-  supervisor: 2,
-  administrador: 3
-} as const;
-
-// Definir permissões por role - exportado para uso no storage
-export const ROLE_PERMISSIONS = {
-  solicitante: {
-    canManageUsers: false,
-    canViewAllTickets: false,
-    canViewDepartmentTickets: false,
-    canManageTickets: false,
-    canViewReports: false,
-    canManageSystem: false,
-    canManageCategories: false,
-    canManageDepartments: false,
-    canCreateTickets: true,
-    canViewOwnTickets: true,
-    canEditOwnTickets: false,
-    canRespondTickets: false,
-  },
-  atendente: {
-    canManageUsers: false,
-    canViewAllTickets: false,
-    canViewDepartmentTickets: true, // Pode ver tickets do departamento
-    canManageTickets: false,
-    canViewReports: false,
-    canManageSystem: false,
-    canManageCategories: false,
-    canManageDepartments: false,
-    canCreateTickets: true,
-    canViewOwnTickets: true,
-    canEditOwnTickets: false,
-    canRespondTickets: true, // Pode responder tickets atribuídos
-  },
-  supervisor: {
-    canManageUsers: true, // Só do seu departamento
-    canViewAllTickets: false,
-    canViewDepartmentTickets: true, // Todos do departamento - FUNCIONAL
-    canManageTickets: true,
-    canViewReports: true,
-    canManageSystem: false,
-    canManageCategories: true, // Só do departamento
-    canManageDepartments: false,
-    canCreateTickets: true,
-    canViewOwnTickets: true,
-    canEditOwnTickets: true,
-    canRespondTickets: true,
-  },
-  administrador: {
-    canManageUsers: true, // Todos os usuários
-    canViewAllTickets: true, // Todos os tickets
-    canViewDepartmentTickets: true,
-    canManageTickets: true,
-    canViewReports: true, // Todos os relatórios
-    canManageSystem: true, // Configurações do sistema
-    canManageCategories: true,
-    canManageDepartments: true,
-    canCreateTickets: true,
-    canViewOwnTickets: true,
-    canEditOwnTickets: true,
-    canRespondTickets: true,
-  }
-} as const;
-
-type UserRole = keyof typeof ROLE_HIERARCHY;
-type PermissionKey = keyof typeof ROLE_PERMISSIONS.solicitante;
-
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    role: UserRole;
-    departmentId?: string;
-  };
-}
-
-export function requirePermission(permission: PermissionKey) {
-  return async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * Middleware para verificar permissões específicas do usuário
+ * @param requiredPermission - A permissão necessária (ex: 'users_view', 'tickets_create')
+ * @returns Express middleware function
+ */
+export function requirePermission(requiredPermission: string): RequestHandler {
+  return async (req: AuthenticatedRequest, res, next) => {
     try {
-      const authReq = req as AuthenticatedRequest;
-      
-      if (!authReq.user) {
+      // Verificar se o usuário está autenticado
+      if (!req.user || !req.user.userId) {
         return res.status(401).json({ message: 'Usuário não autenticado' });
       }
 
-      const userRole = authReq.user.role;
+      const userId = req.user.userId;
+      console.log(`🔐 Checking permission '${requiredPermission}' for user ${userId}`);
       
-      // Tratar caso especial do role "admin" = "administrador"
-      const normalizedRole = userRole === 'admin' ? 'administrador' : userRole;
+      // Obter permissões do usuário do banco
+      const userPermissions = await storage.getUserPermissions(userId);
+      console.log(`👤 User ${userId} permissions:`, userPermissions);
       
-      // Buscar permissões do banco de dados
-      const userPermissions = await storage.getPermissionByRole(normalizedRole);
-      const hasPermission = userPermissions?.[permission] || false;
-
+      // Verificar se o usuário tem a permissão necessária
+      const hasPermission = userPermissions.includes(requiredPermission);
+      
       if (!hasPermission) {
+        console.log(`❌ Permission denied: User ${userId} lacks '${requiredPermission}'`);
         return res.status(403).json({ 
-          message: 'Acesso negado. Permissão insuficiente.',
-          required: permission,
-          userRole: userRole
+          message: 'Acesso negado: você não tem permissão para realizar esta ação',
+          requiredPermission,
+          userPermissions 
         });
       }
 
+      console.log(`✅ Permission granted: User ${userId} has '${requiredPermission}'`);
       next();
     } catch (error) {
-      console.error('Erro no middleware de permissão:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      console.error('❌ Error checking permissions:', error);
+      res.status(500).json({ message: 'Erro interno ao verificar permissões' });
     }
   };
 }
 
-export function requireRole(minRole: UserRole | string) {
-  return async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * Middleware para verificar múltiplas permissões (OR - qualquer uma das permissões)
+ * @param permissions - Array de permissões (usuário precisa ter pelo menos uma)
+ * @returns Express middleware function
+ */
+export function requireAnyPermission(permissions: string[]): RequestHandler {
+  return async (req: AuthenticatedRequest, res, next) => {
     try {
-      const authReq = req as AuthenticatedRequest;
-      
-      if (!authReq.user) {
+      if (!req.user || !req.user.userId) {
         return res.status(401).json({ message: 'Usuário não autenticado' });
       }
 
-      const userRole = authReq.user.role;
+      const userId = req.user.userId;
+      console.log(`🔐 Checking any of permissions [${permissions.join(', ')}] for user ${userId}`);
       
-      console.log('RequireRole Debug:', {
-        userRole,
-        minRole,
-        user: authReq.user
-      });
+      const userPermissions = await storage.getUserPermissions(userId);
+      console.log(`👤 User ${userId} permissions:`, userPermissions);
       
-      // Tratar caso especial do role "admin" = "administrador"
-      const normalizedUserRole = userRole === 'admin' ? 'administrador' : userRole;
-      const normalizedMinRole = minRole === 'admin' ? 'administrador' : minRole;
+      // Verificar se o usuário tem pelo menos uma das permissões
+      const hasAnyPermission = permissions.some(permission => 
+        userPermissions.includes(permission)
+      );
       
-      console.log('Normalized roles:', {
-        normalizedUserRole,
-        normalizedMinRole,
-        isAdmin: normalizedUserRole === 'administrador'
-      });
-      
-      // Se for administrador, sempre tem acesso
-      if (normalizedUserRole === 'administrador') {
-        console.log('Admin access granted');
-        return next();
-      }
-      
-      const userLevel = ROLE_HIERARCHY[normalizedUserRole as UserRole] || 0;
-      const requiredLevel = ROLE_HIERARCHY[normalizedMinRole as UserRole] || 0;
-
-      console.log('Hierarchy levels:', { userLevel, requiredLevel });
-
-      if (userLevel < requiredLevel) {
-        console.log('Access denied - insufficient level');
+      if (!hasAnyPermission) {
+        console.log(`❌ Permission denied: User ${userId} lacks any of [${permissions.join(', ')}]`);
         return res.status(403).json({ 
-          message: 'Acesso negado. Nível hierárquico insuficiente.',
-          required: normalizedMinRole,
-          userRole: userRole
+          message: 'Acesso negado: você não tem permissão para realizar esta ação',
+          requiredPermissions: permissions,
+          userPermissions 
         });
       }
 
-      console.log('Access granted');
+      console.log(`✅ Permission granted: User ${userId} has required permissions`);
       next();
     } catch (error) {
-      console.error('Erro no middleware de role:', error);
-      res.status(500).json({ message: 'Erro interno do servidor' });
+      console.error('❌ Error checking permissions:', error);
+      res.status(500).json({ message: 'Erro interno ao verificar permissões' });
     }
   };
 }
 
-// Middleware para filtrar tickets baseado na hierarquia
-export async function filterTicketsByHierarchy(req: Request, res: Response, next: NextFunction) {
-  try {
-    const authReq = req as AuthenticatedRequest;
-    
-    if (!authReq.user) {
-      return res.status(401).json({ message: 'Usuário não autenticado' });
+/**
+ * Middleware para verificar múltiplas permissões (AND - todas as permissões necessárias)
+ * @param permissions - Array de permissões (usuário precisa ter todas)
+ * @returns Express middleware function
+ */
+export function requireAllPermissions(permissions: string[]): RequestHandler {
+  return async (req: AuthenticatedRequest, res, next) => {
+    try {
+      if (!req.user || !req.user.userId) {
+        return res.status(401).json({ message: 'Usuário não autenticado' });
+      }
+
+      const userId = req.user.userId;
+      console.log(`🔐 Checking all permissions [${permissions.join(', ')}] for user ${userId}`);
+      
+      const userPermissions = await storage.getUserPermissions(userId);
+      console.log(`👤 User ${userId} permissions:`, userPermissions);
+      
+      // Verificar se o usuário tem todas as permissões necessárias
+      const hasAllPermissions = permissions.every(permission => 
+        userPermissions.includes(permission)
+      );
+      
+      if (!hasAllPermissions) {
+        const missingPermissions = permissions.filter(permission => 
+          !userPermissions.includes(permission)
+        );
+        console.log(`❌ Permission denied: User ${userId} missing permissions [${missingPermissions.join(', ')}]`);
+        return res.status(403).json({ 
+          message: 'Acesso negado: você não tem todas as permissões necessárias',
+          requiredPermissions: permissions,
+          missingPermissions,
+          userPermissions 
+        });
+      }
+
+      console.log(`✅ All permissions granted: User ${userId} has all required permissions`);
+      next();
+    } catch (error) {
+      console.error('❌ Error checking permissions:', error);
+      res.status(500).json({ message: 'Erro interno ao verificar permissões' });
     }
-
-    const userRole = authReq.user.role;
-    const userId = authReq.user.id;
-    const userDepartmentId = authReq.user.departmentId;
-
-    // Tratar caso especial do role "admin" = "administrador"
-    const normalizedRole = userRole === 'admin' ? 'administrador' : userRole;
-    
-    // Adicionar parâmetros de filtro baseado na hierarquia
-    switch (normalizedRole) {
-      case 'colaborador':
-        // Colaboradores só veem seus próprios tickets
-        req.query.createdBy = userId;
-        break;
-      
-      case 'supervisor':
-        // Supervisores veem todos do departamento
-        if (userDepartmentId) {
-          req.query.departmentId = userDepartmentId;
-        }
-        break;
-      
-      case 'administrador':
-        // Administradores veem tudo (sem filtro adicional)
-        break;
-      
-      default:
-        // Fallback para colaborador
-        req.query.createdBy = userId;
-        break;
-    }
-
-    next();
-  } catch (error) {
-    console.error('Erro no middleware de filtro de tickets:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
-  }
+  };
 }
-
-// Middleware para autenticação simulada (será substituído pelo sistema real de auth)
-export async function mockAuth(req: Request, res: Response, next: NextFunction) {
-  // Simulação temporária - usa usuários reais do banco de dados
-  try {
-    const { storage } = await import('../storage');
-    const authReq = req as AuthenticatedRequest;
-    
-    // Para demo, simular diferentes usuários baseado no contexto da requisição
-    // Em produção, isso viria da sessão/token
-    const allUsers = await storage.getAllUsers();
-    
-    // Por padrão usar admin, mas permitir override via header para testes
-    const testUserId = req.headers['x-test-user-id'] as string;
-    const testUserRole = req.headers['x-test-user-role'] as string;
-    
-    let currentUser;
-    
-    if (testUserId) {
-      currentUser = allUsers.find(user => user.id === testUserId);
-    } else if (testUserRole) {
-      currentUser = allUsers.find(user => user.role === testUserRole);
-    } else {
-      // Default: usar admin
-      currentUser = allUsers.find(user => user.role === 'admin' || user.role === 'administrador');
-    }
-    
-    console.log('MockAuth Debug:', {
-      totalUsers: allUsers.length,
-      currentUserFound: !!currentUser,
-      currentUserRole: currentUser?.role,
-      requestHeaders: { testUserId, testUserRole }
-    });
-    
-    if (currentUser) {
-      authReq.user = {
-        id: currentUser.id,
-        role: currentUser.role as UserRole,
-        departmentId: currentUser.departmentId || undefined
-      };
-    } else {
-      // Fallback para usuário mock admin
-      console.log('No user found, using mock admin');
-      authReq.user = {
-        id: 'mock-admin-id',
-        role: 'admin',
-        departmentId: undefined
-      };
-    }
-    
-    console.log('MockAuth final user:', authReq.user);
-    next();
-  } catch (error) {
-    console.error('Error in mockAuth:', error);
-    // Fallback em caso de erro
-    const authReq = req as AuthenticatedRequest;
-    authReq.user = {
-      id: 'mock-admin-id',
-      role: 'admin',
-      departmentId: undefined
-    };
-    next();
-  }
-}
-
-export { AuthenticatedRequest };

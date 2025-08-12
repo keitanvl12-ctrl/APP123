@@ -149,6 +149,7 @@ router.post('/roles', async (req, res) => {
 router.delete('/roles/:roleId', async (req, res) => {
   try {
     const { roleId } = req.params;
+    console.log(`🗑️ Deleting role: ${roleId}`);
     
     // Check if it's a system role
     const systemRoles = ['administrador', 'supervisor', 'atendente', 'solicitante'];
@@ -156,10 +157,18 @@ router.delete('/roles/:roleId', async (req, res) => {
       return res.status(400).json({ message: 'Não é possível excluir funções do sistema' });
     }
     
-    // For demo, just return success
-    res.json({ message: 'Função excluída com sucesso' });
+    // Delete role using storage
+    const deleted = await storage.deleteSystemRole(roleId);
+    
+    if (deleted) {
+      console.log(`✅ Role ${roleId} deleted successfully`);
+      res.json({ message: 'Função excluída com sucesso' });
+    } else {
+      console.log(`❌ Role ${roleId} not found`);
+      res.status(404).json({ message: 'Função não encontrada' });
+    }
   } catch (error) {
-    console.error('Erro ao excluir função:', error);
+    console.error('❌ Erro ao excluir função:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
