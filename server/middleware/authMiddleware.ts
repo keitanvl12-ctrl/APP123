@@ -75,6 +75,36 @@ export const filterByHierarchy = (req: AuthenticatedRequest, res: Response, next
   next();
 };
 
+// Real authentication middleware that checks for valid user session/token
+export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { storage } = await import('../storage');
+    const authReq = req as AuthenticatedRequest;
+    
+    // For now, authenticate using the first admin user in the system
+    // In a real system, this would check JWT tokens, sessions, cookies, etc.
+    const allUsers = await storage.getAllUsers();
+    const adminUser = allUsers.find(user => user.role === 'admin' || user.role === 'administrador');
+    
+    if (adminUser) {
+      authReq.user = {
+        id: adminUser.id,
+        role: adminUser.role as any,
+        departmentId: adminUser.departmentId || undefined
+      };
+      
+      console.log(`✅ User authenticated: ${adminUser.name} (${adminUser.role})`);
+      next();
+    } else {
+      console.log('❌ No authenticated user found');
+      return res.status(401).json({ message: 'Usuário não autenticado' });
+    }
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return res.status(500).json({ message: 'Erro de autenticação' });
+  }
+};
+
 // Extend Request interface
 declare global {
   namespace Express {

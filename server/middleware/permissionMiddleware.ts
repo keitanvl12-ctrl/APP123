@@ -9,8 +9,8 @@ const ROLE_HIERARCHY = {
   administrador: 3
 } as const;
 
-// Definir permissões por role
-const ROLE_PERMISSIONS = {
+// Definir permissões por role - exportado para uso no storage
+export const ROLE_PERMISSIONS = {
   solicitante: {
     canManageUsers: false,
     canViewAllTickets: false,

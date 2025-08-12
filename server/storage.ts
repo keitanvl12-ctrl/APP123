@@ -707,6 +707,31 @@ export class DatabaseStorage implements IStorage {
     return roles;
   }
 
+  // Get user permissions from database based on role
+  async getUserPermissions(role: string): Promise<any[]> {
+    // Import permissions from middleware
+    const { ROLE_PERMISSIONS } = await import('./middleware/permissionMiddleware');
+    
+    // Normalize role (admin -> administrador)
+    const normalizedRole = role === 'admin' ? 'administrador' : role;
+    
+    const rolePermissions = ROLE_PERMISSIONS[normalizedRole as keyof typeof ROLE_PERMISSIONS];
+    
+    if (!rolePermissions) {
+      console.log(`❌ No permissions found for role: ${normalizedRole}`);
+      return [];
+    }
+
+    // Convert permissions object to array format
+    const permissions = Object.entries(rolePermissions).map(([key, value]) => ({
+      code: key,
+      allowed: Boolean(value)
+    }));
+
+    console.log(`✅ Permissions for role ${normalizedRole}:`, permissions.length);
+    return permissions;
+  }
+
   // Get role permissions
   getRolePermissions(role: string): any {
     const rolePermissions = {

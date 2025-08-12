@@ -7,6 +7,7 @@ TicketFlow Pro is a comprehensive, full-stack ticket management system developed
 Preferred communication style: Simple, everyday language.
 Language: Sistema completo traduzido para português brasileiro (interface, formulários, dados de exemplo).
 Design preference: Clean, minimalist interface design - avoid excessive visual elements, colors, and decorative components. Manter o design original do Kanban com cards limpos e organizados, sem alterações visuais drásticas.
+Authentication: Real permissions system based on user's actual function/role in database, not simulation/testing mode. System should fetch permissions from database based on authenticated user's role.
 
 # System Architecture
 
