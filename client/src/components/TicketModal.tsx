@@ -7,8 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Clock, User, FileText, Calendar, AlertCircle,
   CheckCircle, Building2, Tag, MessageCircle, UserPlus,
-  Edit, Trash2, Settings
+  Edit, Trash2, Settings, X
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -25,10 +28,17 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
   const [isOpen, setIsOpen] = useState(false);
   const [customFields, setCustomFields] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    subject: '',
+    description: '',
+    priority: '',
+    status: ''
+  });
   const { toast } = useToast();
 
   const handleDelete = async () => {
-    if (window.confirm('Tem certeza que deseja excluir este ticket? Esta ação não pode ser desfeita.')) {
+    if (window.confirm(`Tem certeza que deseja excluir o ticket ${ticket.ticketNumber}? Esta ação não pode ser desfeita.`)) {
       try {
         const response = await fetch(`/api/tickets/${ticket.id}`, {
           method: 'DELETE',
@@ -54,6 +64,60 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
         });
       }
     }
+  };
+
+  const handleEdit = () => {
+    setEditData({
+      subject: ticket.subject || '',
+      description: ticket.description || '',
+      priority: ticket.priority || '',
+      status: ticket.status || ''
+    });
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const response = await fetch(`/api/tickets/${ticket.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(editData)
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Ticket atualizado",
+          description: "O ticket foi atualizado com sucesso."
+        });
+        setIsEditing(false);
+        onUpdate?.();
+        // Fechar o modal e atualizar os dados
+        setIsOpen(false);
+        window.location.reload(); // Força refresh dos dados
+      } else {
+        throw new Error('Falha ao atualizar ticket');
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar ticket:', error);
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar o ticket. Tente novamente.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditData({
+      subject: ticket.subject || '',
+      description: ticket.description || '',
+      priority: ticket.priority || '',
+      status: ticket.status || ''
+    });
   };
 
   // Buscar campos customizados quando o modal abrir
@@ -146,24 +210,49 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
               {/* Botões de Ação - Apenas para Administradores */}
               {userRole === 'admin' && (
                 <div className="flex items-center space-x-2 mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEdit?.(ticket)}
-                    className="flex items-center space-x-1"
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>Editar</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete()}
-                    className="flex items-center space-x-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Excluir</span>
-                  </Button>
+                  {!isEditing ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleEdit}
+                        className="flex items-center space-x-1"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Editar</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDelete}
+                        className="flex items-center space-x-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Excluir</span>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveEdit}
+                        className="flex items-center space-x-1 text-green-600 hover:text-green-700 hover:bg-green-50"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Salvar</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancelEdit}
+                        className="flex items-center space-x-1"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Cancelar</span>
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </DialogTitle>
@@ -181,12 +270,79 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
               <CardContent className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-gray-600">Título</label>
-                  <p className="text-sm text-gray-900">{ticket.subject}</p>
+                  {isEditing ? (
+                    <Input
+                      value={editData.subject}
+                      onChange={(e) => setEditData(prev => ({ ...prev, subject: e.target.value }))}
+                      className="mt-1"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900 mt-1">{ticket.subject}</p>
+                  )}
                 </div>
                 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Descrição</label>
-                  <p className="text-sm text-gray-900">{ticket.description}</p>
+                  {isEditing ? (
+                    <Textarea
+                      value={editData.description}
+                      onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                      className="mt-1"
+                      rows={3}
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-900 mt-1">{ticket.description}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Prioridade</label>
+                    {isEditing ? (
+                      <Select 
+                        value={editData.priority} 
+                        onValueChange={(value) => setEditData(prev => ({ ...prev, priority: value }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Baixa</SelectItem>
+                          <SelectItem value="medium">Média</SelectItem>
+                          <SelectItem value="high">Alta</SelectItem>
+                          <SelectItem value="critical">Crítica</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge className={`${getPriorityColor(ticket.priority)} mt-1`}>
+                        {getPriorityLabel(ticket.priority)}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Status</label>
+                    {isEditing ? (
+                      <Select 
+                        value={editData.status} 
+                        onValueChange={(value) => setEditData(prev => ({ ...prev, status: value }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">A Fazer</SelectItem>
+                          <SelectItem value="in_progress">Atendendo</SelectItem>
+                          <SelectItem value="on_hold">Pausado</SelectItem>
+                          <SelectItem value="resolved">Resolvido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge className={`${getStatusColor(ticket.status)} mt-1`}>
+                        {getStatusLabel(ticket.status)}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

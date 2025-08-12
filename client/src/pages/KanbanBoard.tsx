@@ -12,6 +12,7 @@ import TicketModal from '@/components/TicketModal';
 import CreateTicketModal from '@/components/CreateTicketModal';
 import TicketFinalizationModal from '@/components/TicketFinalizationModal';
 import ServiceOrderModal from '@/components/ServiceOrderModal';
+import DeleteConfirmationDialog from '@/components/DeleteConfirmationDialog';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -263,6 +264,10 @@ export default function KanbanBoard() {
     finalizationData: any | null;
   }>({ isOpen: false, ticket: null, finalizationData: null });
   const [pauseModal, setPauseModal] = useState<{
+    isOpen: boolean;
+    ticket: any | null;
+  }>({ isOpen: false, ticket: null });
+  const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     ticket: any | null;
   }>({ isOpen: false, ticket: null });
@@ -621,34 +626,30 @@ export default function KanbanBoard() {
     mutationFn: async (ticketId: string) => {
       const response = await fetch(`/api/tickets/${ticketId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        credentials: 'include'
       });
       if (!response.ok) {
         throw new Error('Falha ao excluir ticket');
       }
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Ticket excluído",
-        description: "O ticket foi excluído com sucesso.",
+        description: "O ticket foi excluído com sucesso."
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
+      setDeleteModal({ isOpen: false, ticket: null });
     },
     onError: (error) => {
-      console.error('Erro ao excluir ticket:', error);
       toast({
         title: "Erro ao excluir",
         description: "Não foi possível excluir o ticket. Tente novamente.",
-        variant: "destructive",
+        variant: "destructive"
       });
-    },
+    }
   });
-
-  const handleDeleteTicket = (ticketId: string) => {
-    deleteTicketMutation.mutate(ticketId);
-  };
 
   const handleEditTicket = (ticket: any) => {
     setEditModal({ isOpen: true, ticket });
@@ -746,6 +747,12 @@ export default function KanbanBoard() {
         description: "Erro inesperado ao pausar o ticket.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteModal.ticket) {
+      deleteTicketMutation.mutate(deleteModal.ticket.id);
     }
   };
 
@@ -1036,17 +1043,7 @@ export default function KanbanBoard() {
                                   <DropdownMenuItem
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      // O modal é aberto automaticamente pelo wrapper
-                                    }}
-                                  >
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteTicket(ticket.id);
+                                      setDeleteModal({ isOpen: true, ticket });
                                     }}
                                     className="text-red-600"
                                   >
@@ -1345,6 +1342,15 @@ export default function KanbanBoard() {
           editTicket={editModal.ticket}
         />
       )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      <DeleteConfirmationDialog
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, ticket: null })}
+        onConfirm={handleDeleteConfirm}
+        ticketNumber={deleteModal.ticket?.ticketNumber || ''}
+        loading={deleteTicketMutation.isPending}
+      />
     </div>
   );
 }
