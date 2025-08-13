@@ -1091,41 +1091,69 @@ export default function KanbanBoard() {
                             </p>
                           </div>
 
-                          {/* Category, Subcategory and Tags */}
-                          {(ticket.categoryName || ticket.subcategoryName || (ticket.tags && ticket.tags.length > 0)) && (
-                            <div className="space-y-2">
-                              {ticket.categoryName && (
-                                <div>
-                                  <span className="text-xs text-gray-500">Categoria:</span>
-                                  <Badge variant="outline" className="ml-2 text-xs">
-                                    {ticket.categoryName}
+                          {/* Custom Fields and Category Info */}
+                          <div className="space-y-2">
+                            {ticket.categoryName && (
+                              <div>
+                                <span className="text-xs text-gray-500">Categoria:</span>
+                                <Badge variant="outline" className="ml-2 text-xs">
+                                  {ticket.categoryName}
+                                </Badge>
+                              </div>
+                            )}
+                            {ticket.subcategoryName && (
+                              <div>
+                                <span className="text-xs text-gray-500">Subcategoria:</span>
+                                <Badge variant="outline" className="ml-2 text-xs bg-green-50 text-green-700 border-green-200">
+                                  {ticket.subcategoryName}
+                                </Badge>
+                              </div>
+                            )}
+                            
+                            {/* Campos customizados preenchidos */}
+                            {ticket.formData && (() => {
+                              try {
+                                const formData = typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData;
+                                const customFields = formData.customFields || formData.originalRequestBody?.customFields || {};
+                                const customFieldEntries = Object.entries(customFields).filter(([_, value]) => value && value !== '');
+                                
+                                return customFieldEntries.length > 0 ? (
+                                  <div className="bg-blue-50 rounded-lg p-2 space-y-1">
+                                    <div className="text-xs text-blue-600 font-medium mb-1">Campos Específicos:</div>
+                                    {customFieldEntries.slice(0, 2).map(([fieldId, value], index) => (
+                                      <div key={fieldId} className="text-xs">
+                                        <span className="text-blue-600 font-medium">Campo {index + 1}:</span>
+                                        <span className="text-blue-800 ml-1">{String(value)}</span>
+                                      </div>
+                                    ))}
+                                    {customFieldEntries.length > 2 && (
+                                      <div className="text-xs text-blue-500">
+                                        +{customFieldEntries.length - 2} campo(s) adicional(is)
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : null;
+                              } catch (error) {
+                                console.error("Erro ao processar formData:", error);
+                                return null;
+                              }
+                            })()}
+
+                            {ticket.tags && ticket.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {ticket.tags.slice(0, 3).map((tag: string, index: number) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {tag}
                                   </Badge>
-                                </div>
-                              )}
-                              {ticket.subcategoryName && (
-                                <div>
-                                  <span className="text-xs text-gray-500">Subcategoria:</span>
-                                  <Badge variant="outline" className="ml-2 text-xs bg-green-50 text-green-700 border-green-200">
-                                    {ticket.subcategoryName}
+                                ))}
+                                {ticket.tags.length > 3 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    +{ticket.tags.length - 3}
                                   </Badge>
-                                </div>
-                              )}
-                              {ticket.tags && ticket.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {ticket.tags.slice(0, 3).map((tag: string, index: number) => (
-                                    <Badge key={index} variant="secondary" className="text-xs">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                  {ticket.tags.length > 3 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      +{ticket.tags.length - 3}
-                                    </Badge>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                )}
+                              </div>
+                            )}
+                          </div>
 
                           {/* Requester Info */}
                           <div className="bg-gray-50 rounded-lg p-2 space-y-1">

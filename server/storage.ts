@@ -134,62 +134,104 @@ export class DatabaseStorage implements IStorage {
 
   // Ticket Management
   async getAllTickets(): Promise<any[]> {
-    const ticketList = await db
-      .select({
-        id: tickets.id,
-        ticketNumber: tickets.ticketNumber,
-        subject: tickets.subject,
-        description: tickets.description,
-        status: tickets.status,
-        priority: tickets.priority,
-        categoryId: tickets.categoryId,
-        subcategoryId: tickets.subcategoryId,
-        pausedAt: tickets.pausedAt,
-        pauseReason: tickets.pauseReason,
-        createdBy: tickets.createdBy,
-        assignedTo: tickets.assignedTo,
-        createdAt: tickets.createdAt,
-        updatedAt: tickets.updatedAt,
-        resolvedAt: tickets.resolvedAt,
-        requesterName: tickets.requesterName,
-        requesterEmail: tickets.requesterEmail,
-        requesterPhone: tickets.requesterPhone,
-        requesterDepartmentId: tickets.requesterDepartmentId,
-        responsibleDepartmentId: tickets.responsibleDepartmentId,
-        formData: tickets.formData,
-        createdByUser: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          role: users.role,
-        },
-        assignedToUser: {
-          id: assignedUser.id,
-          name: assignedUser.name,
-          email: assignedUser.email,
-          role: assignedUser.role,
-        },
-        categoryName: categories.name,
-        subcategoryName: subcategories.name,
-        requesterDepartment: {
-          id: requesterDept.id,
-          name: requesterDept.name,
-        },
-        responsibleDepartment: {
-          id: responsibleDept.id,
-          name: responsibleDept.name,
-        },
-      })
-      .from(tickets)
-      .leftJoin(users, eq(tickets.createdBy, users.id))
-      .leftJoin(assignedUser, eq(tickets.assignedTo, assignedUser.id))
-      .leftJoin(categories, eq(tickets.categoryId, categories.id))
-      .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
-      .leftJoin(requesterDept, eq(tickets.requesterDepartmentId, requesterDept.id))
-      .leftJoin(responsibleDept, eq(tickets.responsibleDepartmentId, responsibleDept.id))
-      .orderBy(desc(tickets.createdAt));
+    try {
+      const ticketList = await db
+        .select({
+          id: tickets.id,
+          ticketNumber: tickets.ticketNumber,
+          subject: tickets.subject,
+          description: tickets.description,
+          status: tickets.status,
+          priority: tickets.priority,
+          categoryId: tickets.categoryId,
+          subcategoryId: tickets.subcategoryId,
+          pausedAt: tickets.pausedAt,
+          pauseReason: tickets.pauseReason,
+          createdBy: tickets.createdBy,
+          assignedTo: tickets.assignedTo,
+          createdAt: tickets.createdAt,
+          updatedAt: tickets.updatedAt,
+          resolvedAt: tickets.resolvedAt,
+          requesterName: tickets.requesterName,
+          requesterEmail: tickets.requesterEmail,
+          requesterPhone: tickets.requesterPhone,
+          requesterDepartmentId: tickets.requesterDepartmentId,
+          responsibleDepartmentId: tickets.responsibleDepartmentId,
+          formData: tickets.formData,
+          // Basic creator info
+          createdByUserName: users.name,
+          createdByUserEmail: users.email,
+          createdByUserRole: users.role,
+          // Category and subcategory names
+          categoryName: categories.name,
+          subcategoryName: subcategories.name,
+        })
+        .from(tickets)
+        .leftJoin(users, eq(tickets.createdBy, users.id))
+        .leftJoin(categories, eq(tickets.categoryId, categories.id))
+        .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
+        .orderBy(desc(tickets.createdAt));
 
-    return ticketList;
+      // Enrich with additional data in a second pass
+      const enrichedTickets = await Promise.all(ticketList.map(async (ticket) => {
+        let assignedToUser = null;
+        let requesterDepartment = null;
+        let responsibleDepartment = null;
+
+        // Get assigned user
+        if (ticket.assignedTo) {
+          const [assignedUser] = await db.select().from(users).where(eq(users.id, ticket.assignedTo));
+          if (assignedUser) {
+            assignedToUser = {
+              id: assignedUser.id,
+              name: assignedUser.name,
+              email: assignedUser.email,
+              role: assignedUser.role,
+            };
+          }
+        }
+
+        // Get requester department
+        if (ticket.requesterDepartmentId) {
+          const [reqDept] = await db.select().from(departments).where(eq(departments.id, ticket.requesterDepartmentId));
+          if (reqDept) {
+            requesterDepartment = {
+              id: reqDept.id,
+              name: reqDept.name,
+            };
+          }
+        }
+
+        // Get responsible department
+        if (ticket.responsibleDepartmentId) {
+          const [respDept] = await db.select().from(departments).where(eq(departments.id, ticket.responsibleDepartmentId));
+          if (respDept) {
+            responsibleDepartment = {
+              id: respDept.id,
+              name: respDept.name,
+            };
+          }
+        }
+
+        return {
+          ...ticket,
+          createdByUser: {
+            id: ticket.createdBy,
+            name: ticket.createdByUserName,
+            email: ticket.createdByUserEmail,
+            role: ticket.createdByUserRole,
+          },
+          assignedToUser,
+          requesterDepartment,
+          responsibleDepartment,
+        };
+      }));
+
+      return enrichedTickets;
+    } catch (error) {
+      console.error("Error in getAllTickets:", error);
+      throw error;
+    }
   }
 
   async getAllTicketsWithSLA(): Promise<any[]> {
@@ -376,59 +418,120 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTicket(id: string): Promise<any> {
-    const [ticket] = await db
-      .select({
-        id: tickets.id,
-        ticketNumber: tickets.ticketNumber,
-        subject: tickets.subject,
-        description: tickets.description,
-        status: tickets.status,
-        priority: tickets.priority,
-        categoryId: tickets.categoryId,
-        subcategoryId: tickets.subcategoryId,
-        createdBy: tickets.createdBy,
-        assignedTo: tickets.assignedTo,
-        createdAt: tickets.createdAt,
-        updatedAt: tickets.updatedAt,
-        resolvedAt: tickets.resolvedAt,
-        requesterName: tickets.requesterName,
-        requesterEmail: tickets.requesterEmail,
-        requesterPhone: tickets.requesterPhone,
-        formData: tickets.formData,
-        createdByUser: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          role: users.role,
-        },
-      })
-      .from(tickets)
-      .leftJoin(users, eq(tickets.createdBy, users.id))
-      .where(eq(tickets.id, id));
+    try {
+      // Get basic ticket data
+      const [ticket] = await db
+        .select()
+        .from(tickets)
+        .where(eq(tickets.id, id))
+        .limit(1);
 
-    if (!ticket) return undefined;
+      if (!ticket) return null;
 
-    // Get comments
-    const ticketComments = await db
-      .select({
-        id: comments.id,
-        content: comments.content,
-        createdAt: comments.createdAt,
-        user: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-        },
-      })
-      .from(comments)
-      .leftJoin(users, eq(comments.userId, users.id))
-      .where(eq(comments.ticketId, id))
-      .orderBy(desc(comments.createdAt));
+      // Get creator user data
+      let createdByUser = null;
+      if (ticket.createdBy) {
+        const [creator] = await db.select().from(users).where(eq(users.id, ticket.createdBy)).limit(1);
+        if (creator) {
+          createdByUser = {
+            id: creator.id,
+            name: creator.name,
+            email: creator.email,
+            role: creator.role,
+          };
+        }
+      }
 
-    return {
-      ...ticket,
-      comments: ticketComments,
-    };
+      // Get assigned user data
+      let assignedToUser = null;
+      if (ticket.assignedTo) {
+        const [assignee] = await db.select().from(users).where(eq(users.id, ticket.assignedTo)).limit(1);
+        if (assignee) {
+          assignedToUser = {
+            id: assignee.id,
+            name: assignee.name,
+            email: assignee.email,
+            role: assignee.role,
+          };
+        }
+      }
+
+      // Get category name
+      let categoryName = null;
+      if (ticket.categoryId) {
+        const [category] = await db.select().from(categories).where(eq(categories.id, ticket.categoryId)).limit(1);
+        categoryName = category?.name || null;
+      }
+
+      // Get subcategory name
+      let subcategoryName = null;
+      if (ticket.subcategoryId) {
+        const [subcategory] = await db.select().from(subcategories).where(eq(subcategories.id, ticket.subcategoryId)).limit(1);
+        subcategoryName = subcategory?.name || null;
+      }
+
+      // Get departments
+      let requesterDepartment = null;
+      let responsibleDepartment = null;
+
+      if (ticket.requesterDepartmentId) {
+        const [reqDept] = await db.select().from(departments).where(eq(departments.id, ticket.requesterDepartmentId)).limit(1);
+        if (reqDept) {
+          requesterDepartment = { id: reqDept.id, name: reqDept.name };
+        }
+      }
+
+      if (ticket.responsibleDepartmentId) {
+        const [respDept] = await db.select().from(departments).where(eq(departments.id, ticket.responsibleDepartmentId)).limit(1);
+        if (respDept) {
+          responsibleDepartment = { id: respDept.id, name: respDept.name };
+        }
+      }
+
+      // Get comments
+      const ticketComments = await db
+        .select({
+          id: comments.id,
+          content: comments.content,
+          createdAt: comments.createdAt,
+          userId: comments.userId,
+        })
+        .from(comments)
+        .where(eq(comments.ticketId, id))
+        .orderBy(desc(comments.createdAt));
+
+      // Enrich comments with user data
+      const enrichedComments = await Promise.all(
+        ticketComments.map(async (comment) => {
+          let user = null;
+          if (comment.userId) {
+            const [commentUser] = await db.select().from(users).where(eq(users.id, comment.userId)).limit(1);
+            if (commentUser) {
+              user = {
+                id: commentUser.id,
+                name: commentUser.name,
+                email: commentUser.email,
+              };
+            }
+          }
+          return { ...comment, user };
+        })
+      );
+
+      return {
+        ...ticket,
+        createdByUser,
+        assignedToUser,
+        categoryName,
+        subcategoryName,
+        requesterDepartment,
+        responsibleDepartment,
+        comments: enrichedComments,
+      };
+    } catch (error) {
+      console.error("Error in getTicket:", error);
+      throw error;
+    }
   }
 
   async createTicket(ticket: InsertTicket): Promise<Ticket> {
