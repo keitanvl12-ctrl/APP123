@@ -453,8 +453,27 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 mt-4">
-                {(() => {
-                  // Extrair campos customizados do formData do ticket
+                {loading ? (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-600">Carregando campos customizados...</p>
+                  </div>
+                ) : customFields.length > 0 ? (
+                  <div className="space-y-4">
+                    {customFields.map((field, index) => (
+                      <div key={index} className="bg-white p-4 rounded-lg border border-blue-200">
+                        <label className="text-sm font-semibold text-blue-700 block mb-2">
+                          {field.customField?.name || `Campo ${index + 1}`}:
+                        </label>
+                        <div className="bg-blue-50 p-3 rounded border">
+                          <p className="text-sm text-blue-900 font-medium">
+                            {field.value || 'Não informado'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (() => {
+                  // Fallback: tentar extrair do formData se não encontrou campos na subcategoria
                   try {
                     const formData = ticket.formData ? (typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData) : {};
                     const customFields = formData.customFields || formData.originalRequestBody?.customFields || {};
@@ -473,14 +492,14 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                         {customFieldEntries.map(([fieldId, value], index) => (
                           <div key={fieldId} className="bg-white p-4 rounded-lg border border-blue-200">
                             <label className="text-sm font-semibold text-blue-700 block mb-2">
-                              Campo {index + 1}:
+                              Pergunta {index + 1}:
                             </label>
                             <div className="bg-blue-50 p-3 rounded border">
                               <p className="text-sm text-blue-900 font-medium">
                                 {String(value)}
                               </p>
                             </div>
-                      </div>
+                          </div>
                         ))}
                       </div>
                     );
@@ -488,7 +507,7 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                     console.error("Erro ao processar campos customizados:", error);
                     return (
                       <div className="text-center py-4">
-                        <p className="text-sm text-gray-600">Erro ao carregar campos específicos.</p>
+                        <p className="text-sm text-gray-600">Nenhum campo específico encontrado para este ticket.</p>
                       </div>
                     );
                   }
