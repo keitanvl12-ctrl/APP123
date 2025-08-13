@@ -88,6 +88,19 @@ O sistema de funções e permissões está 100% funcional e operacional:
 - ✅ Middleware de permissões ativo e testado nos endpoints críticos
 - ✅ Formulário de edição começa sempre desmarcado - usuário seleciona permissões desejadas
 
+### ✅ CORREÇÃO REALIZADA - 13 de agosto de 2025
+**Problema identificado e corrigido:** Sistema de subcategorias no formulário de criação de tickets
+- Endpoint de subcategorias não estava filtrando por categoria corretamente
+- Campos customizados estavam sendo buscados por categoria em vez de subcategoria
+- Implementado método `getSubcategoriesByCategory` no storage
+- Endpoint `/api/subcategories?categoryId=X` funcionando corretamente
+- Frontend busca subcategorias automaticamente quando categoria é selecionada
+- Campos customizados agora são buscados apenas após seleção da subcategoria
+- Reset automático da subcategoria quando categoria muda
+
+**Arquitetura corrigida e funcionando:**
+Departamento → Categoria → **Subcategoria** → Campos Customizados
+
 # System Architecture
 
 ## Frontend Architecture

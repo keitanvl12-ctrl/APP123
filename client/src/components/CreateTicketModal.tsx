@@ -75,6 +75,11 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
   // Fetch custom fields for selected subcategory (não mais para categoria)
   const { data: customFields = [] } = useQuery<CustomField[]>({
     queryKey: ["/api/custom-fields/subcategory", selectedSubcategoryId],
+    queryFn: async () => {
+      if (!selectedSubcategoryId) return [];
+      const response = await apiRequest(`/api/custom-fields/subcategory/${selectedSubcategoryId}`, "GET");
+      return response.json();
+    },
     enabled: isOpen && !!selectedSubcategoryId,
   });
 
@@ -116,8 +121,10 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
 
   // Debug logging
   console.log("Debug - Selected category ID:", selectedCategoryId);
+  console.log("Debug - Selected subcategory ID:", selectedSubcategoryId);
+  console.log("Debug - Subcategories:", subcategories);
   console.log("Debug - Custom fields:", customFields);
-  console.log("Debug - Query enabled:", isOpen && !!selectedCategoryId);
+  console.log("Debug - Query enabled:", isOpen && !!selectedSubcategoryId);
 
   // Reset category when department changes
   useEffect(() => {
@@ -125,8 +132,17 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
       form.setValue("categoryId", "");
       form.setValue("subcategoryId", "");
       setSelectedCategoryId("");
+      setSelectedSubcategoryId("");
     }
   }, [selectedDepartment, form]);
+
+  // Reset subcategory when category changes
+  useEffect(() => {
+    if (selectedCategoryId) {
+      form.setValue("subcategoryId", "");
+      setSelectedSubcategoryId("");
+    }
+  }, [selectedCategoryId, form]);
 
   // Simular usuário logado (pegar usuário admin com departamento)
   const currentUser = users?.find(u => u.role === 'admin') || users?.[0];
