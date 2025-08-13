@@ -37,100 +37,15 @@ import PermissionSettings from "@/pages/PermissionSettings";
 import HierarchyManagement from "@/pages/HierarchyManagement";
 import RolesManagement from "@/pages/RoleManagementSimple";
 import Subcategories from "@/pages/Subcategories";
-
 import HierarchyDemo from "@/components/HierarchyDemo";
-import { PermissionGuard, AdminOnly, SupervisorOnly } from "@/components/PermissionGuard";
-import { useEffect, useState } from "react";
+
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
-
-// Simple auth check
-const useAuth = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    const checkUserStatus = async () => {
-      const token = localStorage.getItem('authToken');
-      const userData = localStorage.getItem('currentUser');
-      
-      if (token && userData) {
-        try {
-          const parsedUser = JSON.parse(userData);
-          
-          // Verificar se o usuário ainda está ativo no sistema
-          const response = await fetch(`/api/users/${parsedUser.id}`);
-          if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
-            const currentUserData = await response.json();
-            
-            // Se o usuário foi bloqueado, fazer logout
-            if (currentUserData.isBlocked) {
-              localStorage.removeItem('authToken');
-              localStorage.removeItem('currentUser');
-              setLocation('/login');
-              return;
-            }
-            
-            // Atualizar dados do usuário se necessário
-            localStorage.setItem('currentUser', JSON.stringify(currentUserData));
-            setUser(currentUserData);
-            setIsAuthenticated(true);
-          } else {
-            // Se o usuário não existe mais, fazer logout
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('currentUser');
-            setLocation('/login');
-            return;
-          }
-        } catch (error) {
-          console.error('Erro ao verificar status do usuário:', error);
-          // Para usuários demo, aceitar sem verificação adicional
-          if (parsedUser.id && (parsedUser.id.includes('admin-') || parsedUser.id.includes('supervisor-') || parsedUser.id.includes('colaborador-'))) {
-            setUser(parsedUser);
-            setIsAuthenticated(true);
-          } else {
-            // Para usuários reais, tentar manter sessão ativa
-            setUser(parsedUser);
-            setIsAuthenticated(true);
-          }
-        }
-      }
-      setIsLoading(false);
-    };
-
-    checkUserStatus();
-  }, [setLocation]);
-
-  const checkPermission = (requiredRole?: string) => {
-    if (!user) return false;
-    if (!requiredRole) return true;
-    
-    const userRole = user.role || user.hierarchy || 'colaborador';
-    console.log('Verificando permissão:', { userRole, requiredRole, user });
-    
-    // Para usuários com role 'admin', tratar como 'administrador'
-    const normalizedRole = userRole === 'admin' ? 'administrador' : userRole;
-    
-    if (requiredRole === 'administrador') {
-      const hasPermission = normalizedRole === 'administrador';
-      console.log('Admin check:', { normalizedRole, hasPermission });
-      return hasPermission;
-    }
-    if (requiredRole === 'supervisor') {
-      const hasPermission = ['supervisor', 'administrador'].includes(normalizedRole);
-      console.log('Supervisor check:', { normalizedRole, hasPermission });
-      return hasPermission;
-    }
-    return true;
-  };
-
-  return { isAuthenticated, isLoading, user, checkPermission };
-};
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) => {
-  const { isAuthenticated, isLoading, checkPermission } = useAuth();
+  const { isAuthenticated, isLoading, hasPermission } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -139,12 +54,12 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
         setLocation('/login');
         return;
       }
-      if (requiredRole && !checkPermission(requiredRole)) {
+      if (requiredRole && !hasPermission(requiredRole)) {
         setLocation('/unauthorized');
         return;
       }
     }
-  }, [isAuthenticated, isLoading, requiredRole, setLocation, checkPermission]);
+  }, [isAuthenticated, isLoading, requiredRole, setLocation, hasPermission]);
 
   if (isLoading) {
     return (
@@ -154,7 +69,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
     );
   }
 
-  if (!isAuthenticated || (requiredRole && !checkPermission(requiredRole))) {
+  if (!isAuthenticated || (requiredRole && !hasPermission(requiredRole))) {
     return null;
   }
 
@@ -162,7 +77,20 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
 };
 
 function AppRouter() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+  
+  useWebSocket(); // Initialize WebSocket connection
+
+  // Redirect logic - run after auth state is determined
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      const currentPath = window.location.pathname;
+      if (currentPath === '/' || currentPath === '/dashboard') {
+        setLocation('/login');
+      }
+    }
+  }, [isAuthenticated, isLoading, setLocation]);
 
   return (
     <Switch>
@@ -174,7 +102,9 @@ function AppRouter() {
           <Layout>
             <Switch>
               <Route path="/" component={Dashboard} />
-              <Route path="/tickets" component={KanbanBoard} />
+              <Route path="/dashboard" component={Dashboard} />
+              <Route path="/all-tickets" component={AllTickets} />
+              <Route path="/kanban" component={KanbanBoard} />
               <Route path="/create-ticket" component={CreateTicket} />
               
               <Route path="/analytics">
@@ -183,33 +113,20 @@ function AppRouter() {
                 </ProtectedRoute>
               </Route>
               
+              <Route path="/team" component={Team} />
               <Route path="/sla" component={SLA} />
               
-              <Route path="/users">
-                <ProtectedRoute requiredRole="supervisor">
+              <Route path="/user-management">
+                <ProtectedRoute requiredRole="administrador">
                   <UserManagement />
                 </ProtectedRoute>
               </Route>
               
-              <Route path="/team">
-                <ProtectedRoute requiredRole="supervisor">
-                  <Team />
-                </ProtectedRoute>
-              </Route>
-              
               <Route path="/departments">
-                <ProtectedRoute requiredRole="administrador">
+                <ProtectedRoute requiredRole="supervisor">
                   <DepartmentManager />
                 </ProtectedRoute>
               </Route>
-              
-              <Route path="/roles">
-                <ProtectedRoute requiredRole="administrador">
-                  <RolesManagement />
-                </ProtectedRoute>
-              </Route>
-              
-              <Route path="/hierarchy-demo" component={() => <HierarchyDemo />} />
               
               <Route path="/categories">
                 <ProtectedRoute requiredRole="supervisor">
@@ -281,10 +198,12 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <Provider store={store}>
         <ThemeProvider>
-          <TooltipProvider>
-            <AppRouter />
-            <Toaster />
-          </TooltipProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <AppRouter />
+              <Toaster />
+            </TooltipProvider>
+          </AuthProvider>
         </ThemeProvider>
       </Provider>
     </QueryClientProvider>

@@ -74,22 +74,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Direct permission check
       if (user.permissions.includes(permission)) return true;
       
-      // Wildcard permission check (e.g., 'tickets.*' covers 'tickets.create')
-      const wildcardPermissions = user.permissions.filter(p => p.endsWith('.*'));
-      for (const wildcardPerm of wildcardPermissions) {
-        const prefix = wildcardPerm.replace('.*', '');
-        if (permission.startsWith(prefix + '.')) {
-          return true;
-        }
-      }
+      // Wildcard check (e.g., "tickets.*" matches "tickets.create")
+      return user.permissions.some(p => 
+        p.endsWith('*') && permission.startsWith(p.replace('*', ''))
+      );
     }
 
-    // Fallback: Admin roles have all permissions
-    const adminRoles = ['admin', 'administrador'];
-    if (user.role && adminRoles.includes(user.role)) return true;
-    if (user.hierarchy && adminRoles.includes(user.hierarchy)) return true;
-
-    // Legacy role-based permissions for backward compatibility
+    // Fallback to role-based permissions for system stability
     const rolePermissions = {
       atendente: [
         'tickets.view_own',
@@ -126,7 +117,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const userRole = user.role || user.hierarchy || 'atendente';
-    const userPermissions = rolePermissions[userRole as keyof typeof rolePermissions] || [];
+    // Map 'admin' to 'administrador' for compatibility
+    const normalizedRole = userRole === 'admin' ? 'administrador' : userRole;
+    const userPermissions = rolePermissions[normalizedRole as keyof typeof rolePermissions] || [];
     
     // Check exact match or wildcard
     return userPermissions.some(p => 
@@ -135,8 +128,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  const isAdmin = (): boolean => user?.hierarchy === 'administrador';
-  const isSupervisor = (): boolean => user?.hierarchy === 'supervisor' || isAdmin();
+  const isAdmin = (): boolean => {
+    if (!user) return false;
+    const role = user.role || user.hierarchy;
+    return role === 'administrador' || role === 'admin';
+  };
+  
+  const isSupervisor = (): boolean => {
+    if (!user) return false;
+    const role = user.role || user.hierarchy;
+    return role === 'supervisor' || isAdmin();
+  };
 
   const value = {
     user,
@@ -162,33 +164,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
-
-// HOC for protected routes
-export const withAuth = <P extends object>(
-  Component: React.ComponentType<P>,
-  requiredPermission?: string
-) => {
-  return (props: P) => {
-    const { isAuthenticated, hasPermission, isLoading } = useAuth();
-    const [, setLocation] = useLocation();
-
-    useEffect(() => {
-      if (!isLoading && !isAuthenticated) {
-        setLocation('/login');
-      } else if (requiredPermission && !hasPermission(requiredPermission)) {
-        setLocation('/unauthorized');
-      }
-    }, [isAuthenticated, hasPermission, isLoading, requiredPermission, setLocation]);
-
-    if (isLoading) {
-      return <div className="flex items-center justify-center h-screen">Carregando...</div>;
-    }
-
-    if (!isAuthenticated || (requiredPermission && !hasPermission(requiredPermission))) {
-      return null;
-    }
-
-    return <Component {...props} />;
-  };
 };
