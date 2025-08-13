@@ -1395,6 +1395,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Configuration endpoints
+  app.get("/api/config/status", async (req, res) => {
+    try {
+      const statusConfigs = await storage.getAllStatusConfig();
+      res.json(statusConfigs);
+    } catch (error) {
+      console.error("Error fetching status config:", error);
+      res.status(500).json({ message: "Failed to fetch status configuration" });
+    }
+  });
+
+  app.get("/api/config/priority", async (req, res) => {
+    try {
+      const priorityConfigs = await storage.getAllPriorityConfig();
+      res.json(priorityConfigs);
+    } catch (error) {
+      console.error("Error fetching priority config:", error);
+      res.status(500).json({ message: "Failed to fetch priority configuration" });
+    }
+  });
+
+  app.get("/api/config/sla", async (req, res) => {
+    try {
+      const slaConfigs = await storage.getAllSlaConfig();
+      res.json(slaConfigs);
+    } catch (error) {
+      console.error("Error fetching SLA config:", error);
+      res.status(500).json({ message: "Failed to fetch SLA configuration" });
+    }
+  });
+
+  // Custom fields endpoint
+  app.get("/api/custom-fields", async (req, res) => {
+    try {
+      const fields = await storage.getCustomFieldsByForm('default');
+      res.json(fields);
+    } catch (error) {
+      console.error("Error fetching custom fields:", error);
+      res.status(500).json({ message: "Failed to fetch custom fields" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

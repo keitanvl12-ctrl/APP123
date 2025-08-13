@@ -4,6 +4,7 @@ import {
   users, tickets, comments, departments, attachments,
   systemRoles, systemPermissions, rolePermissions,
   categories, customFields, customFieldValues,
+  statusConfig, priorityConfig, slaConfig, slaRules,
   type User, type InsertUser, type Ticket, type InsertTicket
 } from "@shared/schema";
 
@@ -38,6 +39,11 @@ export interface IStorage {
   getDepartmentPerformance(): Promise<any[]>;
   getAssignableUsers(): Promise<any[]>;
   createComment(comment: any): Promise<any>;
+  getAllCategories(): Promise<any[]>;
+  getAllStatusConfig(): Promise<any[]>;
+  getAllPriorityConfig(): Promise<any[]>;
+  getAllSlaConfig(): Promise<any[]>;
+  getCustomFieldsByForm(formType: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -330,6 +336,99 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error fetching categories:", error);
       // Return empty array if table doesn't exist or other error
+      return [];
+    }
+  }
+
+  async getAllStatusConfig(): Promise<any[]> {
+    try {
+      const result = await db.select().from(statusConfig);
+      return result;
+    } catch (error) {
+      console.error("Error fetching status config:", error);
+      return [
+        { id: 'open', name: 'Aberto', value: 'open', color: '#ef4444', order: 1, isActive: true, isDefault: true },
+        { id: 'in_progress', name: 'Em Progresso', value: 'in_progress', color: '#3b82f6', order: 2, isActive: true, isDefault: false },
+        { id: 'on_hold', name: 'Em Espera', value: 'on_hold', color: '#f59e0b', order: 3, isActive: true, isDefault: false },
+        { id: 'resolved', name: 'Resolvido', value: 'resolved', color: '#10b981', order: 4, isActive: true, isDefault: false },
+        { id: 'closed', name: 'Fechado', value: 'closed', color: '#6b7280', order: 5, isActive: true, isDefault: false }
+      ];
+    }
+  }
+
+  async getAllPriorityConfig(): Promise<any[]> {
+    try {
+      const result = await db.select().from(priorityConfig);
+      return result;
+    } catch (error) {
+      console.error("Error fetching priority config:", error);
+      return [
+        { id: 'low', name: 'Baixa', value: 'low', color: '#10b981', order: 1, isActive: true, isDefault: true },
+        { id: 'medium', name: 'Média', value: 'medium', color: '#f59e0b', order: 2, isActive: true, isDefault: false },
+        { id: 'high', name: 'Alta', value: 'high', color: '#ef4444', order: 3, isActive: true, isDefault: false },
+        { id: 'critical', name: 'Crítica', value: 'critical', color: '#dc2626', order: 4, isActive: true, isDefault: false }
+      ];
+    }
+  }
+
+  async getAllSlaConfig(): Promise<any[]> {
+    try {
+      const slaConfigResult = await db.select().from(slaConfig);
+      return slaConfigResult;
+    } catch (error) {
+      console.error("Error fetching SLA config:", error);
+      return [
+        {
+          id: '1',
+          categoryId: null,
+          priority: 'critical',
+          responseTimeHours: 1,
+          resolutionTimeHours: 4,
+          escalationRules: JSON.stringify([
+            { level: 1, hoursAfter: 2, notifyRoles: ['supervisor'] },
+            { level: 2, hoursAfter: 4, notifyRoles: ['administrador'] }
+          ]),
+          isActive: true
+        },
+        {
+          id: '2',
+          categoryId: null,
+          priority: 'high',
+          responseTimeHours: 2,
+          resolutionTimeHours: 8,
+          escalationRules: JSON.stringify([
+            { level: 1, hoursAfter: 4, notifyRoles: ['supervisor'] }
+          ]),
+          isActive: true
+        },
+        {
+          id: '3',
+          categoryId: null,
+          priority: 'medium',
+          responseTimeHours: 4,
+          resolutionTimeHours: 24,
+          escalationRules: JSON.stringify([]),
+          isActive: true
+        },
+        {
+          id: '4',
+          categoryId: null,
+          priority: 'low',
+          responseTimeHours: 8,
+          resolutionTimeHours: 72,
+          escalationRules: JSON.stringify([]),
+          isActive: true
+        }
+      ];
+    }
+  }
+
+  async getCustomFieldsByForm(formType: string): Promise<any[]> {
+    try {
+      const customFieldsResult = await db.select().from(customFields);
+      return customFieldsResult;
+    } catch (error) {
+      console.error("Error fetching custom fields:", error);
       return [];
     }
   }

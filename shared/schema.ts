@@ -130,6 +130,19 @@ export const slaRules = pgTable("sla_rules", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// SLA Configuration table
+export const slaConfig = pgTable("sla_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryId: varchar("category_id").references(() => categories.id),
+  priority: text("priority"), // critical, high, medium, low
+  responseTimeHours: integer("response_time_hours").notNull().default(4),
+  resolutionTimeHours: integer("resolution_time_hours").notNull().default(24),
+  escalationRules: text("escalation_rules"), // JSON string with escalation rules
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Custom Fields table - fields specific to categories AND departments
 export const customFields = pgTable("custom_fields", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
