@@ -53,6 +53,9 @@ export interface IStorage {
   updateSubcategory(id: string, updates: Partial<Subcategory>): Promise<Subcategory>;
   deleteSubcategory(id: string): Promise<boolean>;
   getAllStatusConfig(): Promise<any[]>;
+  createStatusConfig(config: any): Promise<any>;
+  updateStatusConfig(id: string, updates: any): Promise<any>;
+  deleteStatusConfig(id: string): Promise<boolean>;
   getAllPriorityConfig(): Promise<any[]>;
   getAllSlaConfig(): Promise<any[]>;
   getSLARules(): Promise<any[]>;
@@ -718,6 +721,40 @@ export class DatabaseStorage implements IStorage {
       { id: 'high', name: 'Alta', value: 'high', color: '#ef4444', order: 3, isActive: true, isDefault: false },
       { id: 'critical', name: 'Crítica', value: 'critical', color: '#dc2626', order: 4, isActive: true, isDefault: false }
     ];
+  }
+
+  async createStatusConfig(config: any): Promise<any> {
+    try {
+      const [result] = await db.insert(statusConfig).values(config).returning();
+      return result;
+    } catch (error) {
+      console.error("Error creating status config:", error);
+      throw error;
+    }
+  }
+
+  async updateStatusConfig(id: string, updates: any): Promise<any> {
+    try {
+      const [result] = await db
+        .update(statusConfig)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(statusConfig.id, id))
+        .returning();
+      return result;
+    } catch (error) {
+      console.error("Error updating status config:", error);
+      throw error;
+    }
+  }
+
+  async deleteStatusConfig(id: string): Promise<boolean> {
+    try {
+      await db.delete(statusConfig).where(eq(statusConfig.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting status config:", error);
+      return false;
+    }
   }
 
   async getSLARules(): Promise<any[]> {
