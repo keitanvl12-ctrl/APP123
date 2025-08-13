@@ -583,10 +583,31 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCustomField(id: string): Promise<boolean> {
     try {
-      await db.delete(customFields).where(eq(customFields.id, id));
+      console.log(`🗑️ Tentando deletar campo customizado: ${id}`);
+      
+      // Primeiro, verificar se o campo existe
+      const existingField = await db
+        .select()
+        .from(customFields)
+        .where(eq(customFields.id, id))
+        .limit(1);
+      
+      if (existingField.length === 0) {
+        console.log(`❌ Campo customizado não encontrado: ${id}`);
+        return false;
+      }
+      
+      // Deletar valores associados primeiro
+      await db.delete(customFieldValues).where(eq(customFieldValues.customFieldId, id));
+      console.log(`🗑️ Valores do campo deletados: ${id}`);
+      
+      // Depois deletar o campo
+      const result = await db.delete(customFields).where(eq(customFields.id, id));
+      console.log(`✅ Campo customizado deletado: ${id}`, result);
+      
       return true;
     } catch (error) {
-      console.error("Error deleting custom field:", error);
+      console.error(`❌ Erro ao deletar campo customizado ${id}:`, error);
       return false;
     }
   }
