@@ -2,16 +2,184 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import express from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 interface AuthenticatedRequest extends Express.Request {
-  user?: any;
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+    permissions?: string[];
+  };
 }
 
-// Mock para compatibilidade
-const isAuthenticated = (req: any, res: any, next: any) => next();
+// Real authentication middleware
+const isAuthenticated = async (req: AuthenticatedRequest, res: any, next: any) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ message: 'Token não fornecido' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+    
+    // Get user from database with their permissions
+    const user = await storage.getUser(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ message: 'Usuário não encontrado' });
+    }
+
+    // Get user permissions
+    const permissions = await storage.getUserPermissions(user.id);
+    
+    req.user = {
+      id: user.id,
+      email: user.email || '',
+      role: user.role || 'colaborador',
+      permissions
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return res.status(401).json({ message: 'Token inválido' });
+  }
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("📡 Registering routes...");
+  
+  // Authentication Routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({
+          message: 'Email e senha são obrigatórios'
+        });
+      }
+
+      console.log('🔐 Tentativa de login para:', email);
+
+      // Find user by email in database
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        console.log('❌ Usuário não encontrado:', email);
+        return res.status(401).json({
+          message: 'Credenciais inválidas'
+        });
+      }
+
+      console.log('👤 Usuário encontrado:', user.name, 'Role:', user.role);
+
+      let isValidPassword = false;
+      
+      try {
+        if (user.password) {
+          // Check if password is already hashed (starts with $2b$)
+          if (user.password.startsWith('$2b$')) {
+            console.log('🔒 Comparando senha com hash bcrypt');
+            isValidPassword = await bcrypt.compare(password, user.password);
+          } else {
+            console.log('🔓 Senha em texto simples detectada - convertendo');
+            // Handle legacy plaintext passwords - convert to hash after login
+            isValidPassword = (password === user.password);
+            if (isValidPassword) {
+              // Update with hashed password for future logins
+              const hashedPassword = await bcrypt.hash(password, 10);
+              await storage.updateUser(user.id, { password: hashedPassword });
+              console.log('✅ Senha convertida para hash');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro na validação da senha:', error);
+        isValidPassword = false;
+      }
+
+      if (!isValidPassword) {
+        console.log('❌ Senha inválida para:', email);
+        return res.status(401).json({
+          message: 'Credenciais inválidas'
+        });
+      }
+
+      console.log('✅ Login bem-sucedido para:', email);
+
+      // Get user permissions
+      const permissions = await storage.getUserPermissions(user.id);
+      console.log('🔑 Permissões do usuário:', permissions.length);
+
+      // Generate JWT token
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          permissions
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+      );
+
+      // Update last login time
+      await storage.updateUser(user.id, { lastLoginAt: new Date() });
+
+      // Return user data without password
+      const { password: _, ...userWithoutPassword } = user;
+
+      res.json({
+        message: 'Login realizado com sucesso',
+        token,
+        user: {
+          ...userWithoutPassword,
+          permissions
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Erro no login:', error);
+      res.status(500).json({
+        message: 'Erro interno do servidor'
+      });
+    }
+  });
+
+  app.get("/api/auth/user", isAuthenticated, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: 'Usuário não encontrado' });
+      }
+
+      // Get full user data from database
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: 'Usuário não encontrado no sistema' });
+      }
+
+      // Get fresh permissions
+      const permissions = await storage.getUserPermissions(user.id);
+
+      // Return user data without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({
+        ...userWithoutPassword,
+        permissions
+      });
+
+    } catch (error) {
+      console.error('Erro ao buscar usuário:', error);
+      res.status(500).json({ message: 'Erro interno do servidor' });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    res.json({ message: 'Logout realizado com sucesso' });
+  });
 
   // Dashboard stats with filters
   app.get("/api/dashboard/stats", async (req, res) => {

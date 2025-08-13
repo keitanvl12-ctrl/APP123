@@ -85,28 +85,44 @@ const LoginPage: React.FC = () => {
 
   const demoAccounts = [
     {
-      role: 'Administrador',
-      email: 'admin@empresa.com',
-      password: 'admin123',
+      role: 'Admin (Felipe)',
+      email: 'felipe.lacerda@grupoopus.com',
+      password: 'felipe123',
       color: 'text-purple-600',
       icon: Shield,
       description: 'Acesso total ao sistema'
     },
     {
-      role: 'Supervisor',
-      email: 'maria.santos@empresa.com', 
-      password: 'maria123',
-      color: 'text-blue-600',
-      icon: Building2,
-      description: 'Gerencia departamentos'
+      role: 'Administrador',
+      email: 'admin@empresa.com',
+      password: 'admin123',
+      color: 'text-red-600',
+      icon: Shield,
+      description: 'Administrador padrão'
     },
     {
-      role: 'Colaborador',
+      role: 'Supervisor',
+      email: 'maria.santos@empresa.com', 
+      password: 'senha123',
+      color: 'text-blue-600',
+      icon: Building2,
+      description: 'Supervisora - Maria Santos'
+    },
+    {
+      role: 'Atendente',
       email: 'ana.costa@empresa.com',
-      password: 'ana123',
+      password: 'senha123',
       color: 'text-green-600',
       icon: LogIn,
-      description: 'Usuário padrão'
+      description: 'Atendente - Ana Costa'
+    },
+    {
+      role: 'Solicitante',
+      email: 'carlos.oliveira@empresa.com',
+      password: 'carlos123',
+      color: 'text-orange-600',
+      icon: LogIn,
+      description: 'Solicitante - Carlos Oliveira'
     }
   ];
 

@@ -5,9 +5,10 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: 'administrador' | 'supervisor' | 'colaborador';
-  hierarchy: 'administrador' | 'supervisor' | 'colaborador';
-  department: {
+  role: string;
+  hierarchy: string;
+  permissions?: string[];
+  department?: {
     id: string;
     name: string;
   };
@@ -68,15 +69,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
 
-    // Admin has all permissions
-    if (user.hierarchy === 'administrador') return true;
+    // Check if user has permissions array from database
+    if (user.permissions && Array.isArray(user.permissions)) {
+      // Direct permission check
+      if (user.permissions.includes(permission)) return true;
+      
+      // Wildcard permission check (e.g., 'tickets.*' covers 'tickets.create')
+      const wildcardPermissions = user.permissions.filter(p => p.endsWith('.*'));
+      for (const wildcardPerm of wildcardPermissions) {
+        const prefix = wildcardPerm.replace('.*', '');
+        if (permission.startsWith(prefix + '.')) {
+          return true;
+        }
+      }
+    }
 
-    // Define permission hierarchy
-    const permissions = {
-      colaborador: [
+    // Fallback: Admin roles have all permissions
+    const adminRoles = ['admin', 'administrador'];
+    if (user.role && adminRoles.includes(user.role)) return true;
+    if (user.hierarchy && adminRoles.includes(user.hierarchy)) return true;
+
+    // Legacy role-based permissions for backward compatibility
+    const rolePermissions = {
+      atendente: [
         'tickets.view_own',
         'tickets.create',
         'tickets.edit_own',
+        'tickets.comment',
         'profile.view'
       ],
       supervisor: [
@@ -86,14 +105,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         'tickets.view_department',
         'tickets.edit_department',
         'tickets.assign',
+        'tickets.comment',
         'users.view_department',
         'reports.view_department',
         'categories.view',
-        'fields.view',
         'profile.view'
       ],
       administrador: [
-        // All permissions
         'tickets.*',
         'users.*',
         'departments.*',
@@ -107,7 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ]
     };
 
-    const userPermissions = permissions[user.hierarchy] || [];
+    const userRole = user.role || user.hierarchy || 'atendente';
+    const userPermissions = rolePermissions[userRole as keyof typeof rolePermissions] || [];
     
     // Check exact match or wildcard
     return userPermissions.some(p => 
