@@ -170,6 +170,36 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
     }
   }, [isOpen, ticket?.id]);
 
+  // Timer para atualizar o SLA em tempo real (apenas para tickets não pausados e não resolvidos)
+  useEffect(() => {
+    if (!isOpen || !ticket?.id || ticket.status === 'resolved' || ticket.status === 'on_hold') {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      // Buscar dados atualizados do ticket para o SLA
+      fetch(`/api/tickets/${ticket.id}`, {
+        credentials: 'include'
+      })
+        .then(res => res.json())
+        .then(updatedTicket => {
+          // Atualizar o progresso do SLA no ticket se mudou
+          if (updatedTicket.slaProgressPercent !== ticket.slaProgressPercent) {
+            console.log('📊 SLA progress updated:', updatedTicket.slaProgressPercent);
+            // Forçar re-render através da callback de onUpdate
+            if (onUpdate) {
+              onUpdate();
+            }
+          }
+        })
+        .catch(err => {
+          console.error("❌ Erro ao atualizar progresso SLA:", err);
+        });
+    }, 30000); // Atualizar a cada 30 segundos
+
+    return () => clearInterval(interval);
+  }, [isOpen, ticket?.id, ticket?.status, onUpdate]);
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'critical': return 'bg-red-100 text-red-800 border-red-200';

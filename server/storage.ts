@@ -812,7 +812,27 @@ export class DatabaseStorage implements IStorage {
 
   async getCustomFieldValuesByTicket(ticketId: string): Promise<any[]> {
     try {
-      const values = await db.select().from(customFieldValues).where(eq(customFieldValues.ticketId, ticketId));
+      const values = await db
+        .select({
+          id: customFieldValues.id,
+          ticketId: customFieldValues.ticketId,
+          customFieldId: customFieldValues.customFieldId,
+          value: customFieldValues.value,
+          createdAt: customFieldValues.createdAt,
+          customField: {
+            id: customFields.id,
+            name: customFields.name,
+            type: customFields.type,
+            required: customFields.required,
+            placeholder: customFields.placeholder,
+            options: customFields.options
+          }
+        })
+        .from(customFieldValues)
+        .innerJoin(customFields, eq(customFieldValues.customFieldId, customFields.id))
+        .where(eq(customFieldValues.ticketId, ticketId));
+      
+      console.log("🔍 Custom field values with metadata:", values);
       return values;
     } catch (error) {
       console.error("Error fetching custom field values:", error);
