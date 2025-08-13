@@ -391,6 +391,12 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 )}
               />
 
+              {/* TESTE VISUAL CRÍTICO - SEMPRE VISÍVEL */}
+              <div className="mt-4 p-6 bg-red-500 text-white text-center text-lg font-bold border-4 border-yellow-500">
+                🚨 TESTE VISUAL: SE VOCÊ VÊ ISTO, O PROBLEMA NÃO É DE RENDERIZAÇÃO! 🚨
+                <br />Campo de Subcategoria deve estar logo abaixo...
+              </div>
+
               {/* Subcategoria - TESTE SEMPRE MOSTRAR */}
               {true && (
                 <FormField
@@ -433,15 +439,15 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 />
               )}
 
-              {/* DEBUG - Nova arquitetura com subcategorias */}
-              <div className="mt-4 p-4 border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20" style={{ backgroundColor: 'blue', color: 'white', fontSize: '16px', fontWeight: 'bold' }}>
-                <h4 className="text-blue-700 font-bold" style={{ color: 'white' }}>🚀 NOVA ARQUITETURA - SUBCATEGORIAS 🚀</h4>
+              {/* DEBUG - Nova arquitetura com subcategorias - MOVIDO PARA ANTES DOS CAMPOS CUSTOMIZADOS */}
+              <div className="mt-4 p-4 border-2 border-blue-500" style={{ backgroundColor: 'blue', color: 'white', fontSize: '14px', fontWeight: 'bold' }}>
+                <h4 style={{ color: 'white' }}>🚀 DEBUG - SUBCATEGORIAS 🚀</h4>
                 <p style={{ color: 'white' }}>Department: {selectedDepartment || "NONE"}</p>
                 <p style={{ color: 'white' }}>Category ID: {selectedCategoryId || "NONE"}</p>
                 <p style={{ color: 'white' }}>Subcategory ID: {selectedSubcategoryId || "NONE"}</p>
                 <p style={{ color: 'white' }}>Subcategories Count: {subcategories?.length || 0}</p>
                 <p style={{ color: 'white' }}>Custom Fields Count: {customFields?.length || 0}</p>
-                <p style={{ color: 'yellow', fontWeight: 'bold' }}>Estrutura: Departamento → Categoria → Subcategoria → Campos</p>
+                <p style={{ color: 'yellow' }}>Estrutura: Departamento → Categoria → Subcategoria → Campos</p>
               </div>
 
               {/* Campos Customizados - Nova arquitetura baseada em SUBCATEGORIAS */}
