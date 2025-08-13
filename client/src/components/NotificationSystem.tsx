@@ -227,16 +227,19 @@ export const useNotifications = () => {
   const currentUser = getCurrentUser();
 
   const { data: notifications = [], refetch } = useQuery({
-    queryKey: ['/api/notifications', currentUser.id],
+    queryKey: ['/api/notifications', currentUser?.id],
     queryFn: async () => {
+      if (!currentUser?.id) return [];
       const response = await fetch(`/api/notifications?userId=${currentUser.id}`);
       if (!response.ok) return [];
-      return response.json();
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
+    enabled: !!currentUser?.id,
     refetchInterval: 30000,
   });
 
-  const unreadCount = notifications.filter((n: any) => !n.read).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter((n: any) => !n.read).length : 0;
 
   return {
     notifications,

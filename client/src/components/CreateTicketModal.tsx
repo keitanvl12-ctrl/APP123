@@ -82,7 +82,8 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
       subject: editTicket?.subject || "",
       description: editTicket?.description || "",
       priority: editTicket?.priority || "medium",
-      category: editTicket?.category || "",
+      categoryId: editTicket?.categoryId || "",
+      subcategoryId: editTicket?.subcategoryId || "",
       responsibleDepartmentId: editTicket?.responsibleDepartmentId || "",
       requesterDepartmentId: editTicket?.requesterDepartmentId || "",
       assignedTo: editTicket?.assignedTo || null,
@@ -93,12 +94,14 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
   useEffect(() => {
     if (editTicket) {
       setSelectedDepartment(editTicket.responsibleDepartmentId || "");
-      setSelectedCategoryId(editTicket.category || "");
+      setSelectedCategoryId(editTicket.categoryId || "");
+      setSelectedSubcategoryId(editTicket.subcategoryId || "");
       form.reset({
         subject: editTicket.subject || "",
         description: editTicket.description || "",
         priority: editTicket.priority || "medium",
-        category: editTicket.category || "",
+        categoryId: editTicket.categoryId || "",
+        subcategoryId: editTicket.subcategoryId || "",
         responsibleDepartmentId: editTicket.responsibleDepartmentId || "",
         requesterDepartmentId: editTicket.requesterDepartmentId || "",
         assignedTo: editTicket.assignedTo || null,
@@ -114,7 +117,8 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
   // Reset category when department changes
   useEffect(() => {
     if (selectedDepartment) {
-      form.setValue("category", "");
+      form.setValue("categoryId", "");
+      form.setValue("subcategoryId", "");
       setSelectedCategoryId("");
     }
   }, [selectedDepartment, form]);
