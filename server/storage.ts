@@ -439,8 +439,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTicket(ticket: InsertTicket): Promise<Ticket> {
-    // Generate ticket number if not provided
-    if (!ticket.ticketNumber) {
+    // Generate ticket number - create a mutable copy
+    const ticketData: any = { ...ticket };
+    if (!ticketData.ticketNumber) {
       // Find the highest ticket number by extracting all ticket numbers and finding max
       const allTickets = await db
         .select({ ticketNumber: tickets.ticketNumber })
@@ -473,7 +474,7 @@ export class DatabaseStorage implements IStorage {
           .limit(1);
         
         if (existingTicket.length === 0) {
-          ticket.ticketNumber = candidateNumber;
+          ticketData.ticketNumber = candidateNumber;
           break;
         }
         
@@ -485,8 +486,8 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    console.log('🎫 Creating ticket with number:', ticket.ticketNumber);
-    const [newTicket] = await db.insert(tickets).values(ticket).returning();
+    console.log('🎫 Creating ticket with number:', ticketData.ticketNumber);
+    const [newTicket] = await db.insert(tickets).values(ticketData).returning();
     return newTicket;
   }
 
@@ -979,15 +980,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getCustomFieldsByForm(formId: string): Promise<any[]> {
-    try {
-      const fields = await db.select().from(customFields);
-      return fields;
-    } catch (error) {
-      console.error("Error fetching custom fields:", error);
-      return [];
-    }
-  }
+
 
   async getCustomFieldsByCategoryAndDepartment(categoryId: string, departmentId: string): Promise<any[]> {
     try {
@@ -1186,7 +1179,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const [updatedValue] = await db
         .update(customFieldValues)
-        .set({ value, updatedAt: new Date() })
+        .set({ value })
         .where(
           and(
             eq(customFieldValues.ticketId, ticketId),
@@ -1247,20 +1240,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]> {
-    try {
-      const subcat = await db
-        .select()
-        .from(subcategories)
-        .where(eq(subcategories.categoryId, categoryId))
-        .orderBy(subcategories.name);
-      console.log(`📊 Subcategories for category ${categoryId}: ${subcat.length}`);
-      return subcat;
-    } catch (error) {
-      console.error("Error fetching subcategories by category:", error);
-      return [];
-    }
-  }
+
 
   async createSubcategory(subcategoryData: InsertSubcategory): Promise<Subcategory> {
     try {

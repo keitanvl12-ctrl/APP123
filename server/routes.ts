@@ -5,7 +5,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-interface AuthenticatedRequest extends Express.Request {
+interface AuthenticatedRequest extends express.Request {
   user?: {
     id: string;
     email: string;
@@ -345,7 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const customFields = await storage.getCustomFieldsBySubcategory(subcategoryId);
         res.json(customFields);
       } else {
-        const customFields = await storage.getAllCustomFields();
+        const customFields = await storage.getCustomFieldsByForm("all");
         res.json(customFields);
       }
     } catch (error) {
