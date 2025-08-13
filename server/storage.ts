@@ -258,16 +258,23 @@ export class DatabaseStorage implements IStorage {
           slaStatus = 'at_risk';
         }
         
-        // Calculate total hours for remaining time calculation
-        const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-        
         // Calculate deadline
         const deadline = new Date(createdAt.getTime() + (slaHours * 60 * 60 * 1000));
+        
+        // Calculate remaining time for active tickets
+        let hoursRemaining = 0;
+        if (ticket.status !== 'resolved' && ticket.status !== 'on_hold') {
+          const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          hoursRemaining = Math.max(0, slaHours - totalHours);
+        } else {
+          // Para tickets pausados/resolvidos, manter tempo restante no momento da pausa/resolução
+          hoursRemaining = ticket.slaHoursRemaining || 0;
+        }
         
         return {
           ...ticket,
           slaHoursTotal: slaHours,
-          slaHoursRemaining: Math.max(0, slaHours - totalHours),
+          slaHoursRemaining: hoursRemaining,
           slaProgressPercent: Math.round(progressPercent),
           slaStatus: slaStatus,
           slaSource: slaSourceName,
@@ -295,12 +302,20 @@ export class DatabaseStorage implements IStorage {
           progressPercent = Math.min(100, (totalHours / 4) * 100);
         }
         
-        const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+        // Calculate remaining time for active tickets only
+        let hoursRemaining = 0;
+        if (ticket.status !== 'resolved' && ticket.status !== 'on_hold') {
+          const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          hoursRemaining = Math.max(0, 4 - totalHours);
+        } else {
+          // Para tickets pausados/resolvidos, manter tempo restante
+          hoursRemaining = ticket.slaHoursRemaining || 0;
+        }
         
         return {
           ...ticket,
           slaHoursTotal: 4,
-          slaHoursRemaining: Math.max(0, 4 - totalHours),
+          slaHoursRemaining: hoursRemaining,
           slaProgressPercent: Math.round(progressPercent),
           slaStatus: progressPercent >= 100 ? 'violated' : (progressPercent >= 80 ? 'at_risk' : 'met'),
           slaSource: 'padrão',
