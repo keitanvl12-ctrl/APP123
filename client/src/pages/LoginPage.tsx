@@ -87,7 +87,7 @@ const LoginPage: React.FC = () => {
     {
       role: 'Admin (Felipe)',
       email: 'felipe.lacerda@grupoopus.com',
-      password: 'felipe123',
+      password: 'admin123',
       color: 'text-purple-600',
       icon: Shield,
       description: 'Acesso total ao sistema'
