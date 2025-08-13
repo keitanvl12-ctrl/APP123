@@ -108,10 +108,7 @@ export default function CustomFieldsManager() {
         ...fieldData,
         options: fieldData.options && fieldData.options.length > 0 ? fieldData.options : null
       };
-      return apiRequest(`/api/custom-fields/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(cleanData)
-      });
+      return apiRequest(`/api/custom-fields/${id}`, 'PATCH', cleanData);
     },
     onSuccess: () => {
       toast({ title: "Campo customizado atualizado!" });
