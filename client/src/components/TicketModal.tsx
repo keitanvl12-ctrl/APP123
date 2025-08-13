@@ -139,6 +139,39 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       console.log("🔍 Buscando campos customizados para:", ticket.ticketNumber);
       console.log("📋 Subcategoria do ticket:", ticket.subcategoryId);
       
+      // Função para tentar buscar campos via fallback usando todos os campos
+      const tryFallbackFieldMapping = async () => {
+        try {
+          const response = await fetch('/api/custom-fields', { credentials: 'include' });
+          const allFields = await response.json();
+          console.log("📦 Buscando via fallback - todos os campos:", allFields);
+          
+          if (ticket.formData) {
+            const formData = typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData;
+            const customFields = formData.customFields || formData.originalRequestBody?.customFields || {};
+            
+            const mappedFields = Object.entries(customFields)
+              .filter(([_, value]) => value && value !== '')
+              .map(([fieldId, value]) => {
+                const field = allFields.find((f: any) => f.id === fieldId);
+                return {
+                  customField: field || { id: fieldId, name: `Campo desconhecido` },
+                  value: String(value)
+                };
+              });
+            
+            console.log("✅ Campos mapeados via fallback:", mappedFields);
+            setCustomFields(mappedFields);
+          } else {
+            setCustomFields([]);
+          }
+        } catch (error) {
+          console.error("❌ Erro no fallback:", error);
+          setCustomFields([]);
+        }
+        setLoading(false);
+      };
+
       // Buscar campos customizados baseados na subcategoria do ticket
       if (ticket.subcategoryId) {
         fetch(`/api/custom-fields/subcategory/${ticket.subcategoryId}`, {
@@ -148,10 +181,10 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
           .then(fields => {
             console.log("✅ Campos customizados da subcategoria encontrados:", fields);
             
-            // Extrair valores dos campos customizados do formData do ticket
-            if (fields.length > 0 && ticket.formData) {
+            if (fields.length > 0) {
+              // Extrair valores dos campos customizados do formData do ticket
               try {
-                const formData = typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData;
+                const formData = ticket.formData ? (typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData) : {};
                 const customFieldsData = formData.customFields || formData.originalRequestBody?.customFields || {};
                 
                 // Mapear os campos com seus valores
@@ -161,28 +194,25 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                 }));
                 
                 console.log("✅ Campos mapeados com valores do formData:", fieldsWithValues);
-                return Promise.resolve(fieldsWithValues);
+                setCustomFields(fieldsWithValues);
+                setLoading(false);
               } catch (error) {
-                console.error("❌ Erro ao parsear formData:", error);
-                return Promise.resolve([]);
+                console.error("❌ Erro ao processar formData, tentando fallback:", error);
+                tryFallbackFieldMapping();
               }
+            } else {
+              // Se não encontrou campos na subcategoria, tentar fallback
+              console.log("⚠️ Nenhum campo na subcategoria, tentando fallback");
+              tryFallbackFieldMapping();
             }
-            return Promise.resolve([]);
-          })
-          .then(values => {
-            console.log("✅ Valores dos campos encontrados:", values);
-            setCustomFields(values || []);
-            setLoading(false);
           })
           .catch(err => {
-            console.error("❌ Erro ao buscar campos customizados:", err);
-            setCustomFields([]);
-            setLoading(false);
+            console.error("❌ Erro ao buscar campos da subcategoria, tentando fallback:", err);
+            tryFallbackFieldMapping();
           });
       } else {
-        console.log("ℹ️ Ticket sem subcategoria definida");
-        setCustomFields([]);
-        setLoading(false);
+        console.log("ℹ️ Ticket sem subcategoria definida, tentando fallback");
+        tryFallbackFieldMapping();
       }
 
       // Buscar usuários atribuíveis (não solicitantes)
