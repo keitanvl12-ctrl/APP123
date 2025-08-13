@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CustomField {
   id: string;
-  categoryId: string;
+  subcategoryId: string; // MUDANÇA: agora usa subcategoryId
   departmentId: string;
   name: string;
   type: 'text' | 'select' | 'textarea' | 'number' | 'email' | 'tel' | 'date';
@@ -28,10 +28,10 @@ interface CustomField {
   updatedAt: string;
 }
 
-interface Category {
+interface Subcategory {
   id: string;
   name: string;
-  departmentId: string;
+  categoryId: string;
   isActive: boolean;
 }
 
@@ -44,13 +44,14 @@ interface Department {
 export default function CustomFieldsManager() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingField, setEditingField] = useState<CustomField | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("");
   const [fieldForm, setFieldForm] = useState({
     name: '',
     type: 'text' as 'text' | 'select' | 'textarea' | 'number' | 'email' | 'tel' | 'date',
     required: false,
     placeholder: '',
     options: [] as string[],
+    subcategoryId: '', // MUDANÇA: agora usa subcategoryId
     categoryId: '',
     departmentId: '',
     order: 1
@@ -63,9 +64,9 @@ export default function CustomFieldsManager() {
     queryKey: ["/api/custom-fields"],
   });
 
-  // Fetch all categories
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
+  // Fetch all subcategories
+  const { data: subcategories = [] } = useQuery<Subcategory[]>({
+    queryKey: ["/api/subcategories"],
   });
 
   // Fetch all departments
@@ -149,6 +150,7 @@ export default function CustomFieldsManager() {
       required: false,
       placeholder: '',
       options: [],
+      subcategoryId: '', // MUDANÇA: agora usa subcategoryId
       categoryId: '',
       departmentId: '',
       order: 1
@@ -163,7 +165,8 @@ export default function CustomFieldsManager() {
       required: field.required,
       placeholder: field.placeholder || '',
       options: field.options || [],
-      categoryId: field.categoryId,
+      subcategoryId: field.subcategoryId, // MUDANÇA: agora usa subcategoryId
+      categoryId: '',
       departmentId: field.departmentId,
       order: field.order
     });
@@ -173,10 +176,10 @@ export default function CustomFieldsManager() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!fieldForm.categoryId) {
+    if (!fieldForm.subcategoryId) {
       toast({ 
         title: "Erro", 
-        description: "Por favor, selecione uma categoria",
+        description: "Por favor, selecione uma subcategoria",
         variant: "destructive" 
       });
       return;
@@ -213,23 +216,23 @@ export default function CustomFieldsManager() {
     setFieldForm(prev => ({ ...prev, options: newOptions }));
   };
 
-  // Group fields by department and category
+  // Group fields by department and subcategory
   const fieldsByDepartment = customFields.reduce((acc, field) => {
     const department = departments.find(d => d.id === field.departmentId);
-    const category = categories.find(c => c.id === field.categoryId);
+    const subcategory = subcategories.find(s => s.id === field.subcategoryId);
     
     const departmentName = department?.name || 'Departamento Desconhecido';
-    const categoryName = category?.name || 'Categoria Desconhecida';
+    const subcategoryName = subcategory?.name || 'Subcategoria Desconhecida';
     
     if (!acc[departmentName]) acc[departmentName] = {};
-    if (!acc[departmentName][categoryName]) acc[departmentName][categoryName] = [];
+    if (!acc[departmentName][subcategoryName]) acc[departmentName][subcategoryName] = [];
     
-    acc[departmentName][categoryName].push(field);
+    acc[departmentName][subcategoryName].push(field);
     return acc;
   }, {} as Record<string, Record<string, CustomField[]>>);
 
-  const filteredFields = selectedCategory && selectedCategory !== "all"
-    ? customFields.filter(field => field.categoryId === selectedCategory)
+  const filteredFields = selectedSubcategory && selectedSubcategory !== "all"
+    ? customFields.filter(field => field.subcategoryId === selectedSubcategory)
     : customFields;
 
   return (
@@ -237,7 +240,7 @@ export default function CustomFieldsManager() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Campos Customizados</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Configure campos específicos para diferentes categorias de tickets</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Configure campos específicos para diferentes subcategorias de tickets</p>
         </div>
         
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -277,18 +280,18 @@ export default function CustomFieldsManager() {
                 </div>
 
                 <div>
-                  <Label htmlFor="category">Categoria *</Label>
+                  <Label htmlFor="subcategory">Subcategoria *</Label>
                   <Select 
-                    value={fieldForm.categoryId} 
-                    onValueChange={(value) => setFieldForm(prev => ({ ...prev, categoryId: value }))}
+                    value={fieldForm.subcategoryId} 
+                    onValueChange={(value) => setFieldForm(prev => ({ ...prev, subcategoryId: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma categoria" />
+                      <SelectValue placeholder="Selecione uma subcategoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
+                      {subcategories.map((subcategory) => (
+                        <SelectItem key={subcategory.id} value={subcategory.id}>
+                          {subcategory.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

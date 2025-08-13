@@ -154,6 +154,7 @@ const Subcategories: React.FC = () => {
       isActive: subcategory.isActive
     });
     setEditingSubcategory(subcategory);
+    setIsCreateModalOpen(true); // Abrir o modal para edição
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -198,7 +199,13 @@ const Subcategories: React.FC = () => {
           </p>
         </div>
         
-        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
+          setIsCreateModalOpen(open);
+          if (!open) {
+            setEditingSubcategory(null);
+            resetForm();
+          }
+        }}>
           <DialogTrigger asChild>
             <Button onClick={() => { resetForm(); setEditingSubcategory(null); }} className="bg-opus-blue-dark hover:bg-opus-blue-dark/90">
               <Plus className="w-4 h-4 mr-2" />

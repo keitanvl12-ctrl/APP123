@@ -839,6 +839,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getCustomFieldsBySubcategory(subcategoryId: string): Promise<any[]> {
+    try {
+      console.log("🔍 Buscando campos customizados para subcategoria:", subcategoryId);
+      const fields = await db
+        .select()
+        .from(customFields)
+        .where(and(
+          eq(customFields.subcategoryId, subcategoryId),
+          eq(customFields.isActive, true)
+        ))
+        .orderBy(customFields.order);
+      
+      console.log("✅ Campos encontrados para subcategoria:", fields.length);
+      return fields;
+    } catch (error) {
+      console.error("❌ Erro ao buscar campos da subcategoria:", error);
+      return [];
+    }
+  }
+
   async getCustomFieldsByForm(formId: string): Promise<any[]> {
     try {
       const fields = await db.select().from(customFields);

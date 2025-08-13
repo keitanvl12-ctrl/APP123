@@ -1413,6 +1413,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Novo endpoint para buscar campos por subcategoria
+  app.get("/api/custom-fields/subcategory/:subcategoryId", async (req, res) => {
+    try {
+      console.log("✅ Buscando campos customizados para subcategoria:", req.params.subcategoryId);
+      const fields = await storage.getCustomFieldsBySubcategory(req.params.subcategoryId);
+      console.log("✅ Campos encontrados:", fields.length);
+      res.json(fields);
+    } catch (error) {
+      console.error("❌ Erro ao buscar campos da subcategoria:", error);
+      res.status(500).json({ message: "Failed to fetch custom fields for subcategory" });
+    }
+  });
+
+  // Endpoint antigo para buscar campos por categoria (mantido para compatibilidade)
   app.get("/api/custom-fields/category/:categoryId", async (req, res) => {
     try {
       const { departmentId } = req.query;
