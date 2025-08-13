@@ -138,27 +138,10 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       setLoading(true);
       console.log("🔍 Buscando campos customizados para:", ticket.ticketNumber);
       
-      // Buscar campos configurados para esta categoria em Administração
-      fetch(`/api/custom-fields/category/${ticket.categoryId}`, {
-        credentials: 'include'
-      })
-        .then(res => res.json())
-        .then(categoryFields => {
-          console.log("✅ Campos da categoria configurados em Administração:", categoryFields);
-          // Retornar apenas os campos como vazios para edição
-          const emptyFields = categoryFields.map(field => ({
-            ...field,
-            value: '', // Sempre vazio
-            valueId: null
-          }));
-          setCustomFields(emptyFields || []);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error("❌ Erro ao buscar campos configurados:", err);
-          setCustomFields([]);
-          setLoading(false);
-        });
+      // DESABILITAR busca por categoria - agora baseados em subcategorias
+      console.log("✅ Campos customizados desabilitados - agora baseados em subcategorias");
+      setCustomFields([]);
+      setLoading(false);
 
       // Buscar usuários atribuíveis (não solicitantes)
       fetch('/api/users/assignable', {

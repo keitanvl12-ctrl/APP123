@@ -494,8 +494,8 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 </div>
               )}
 
-              {/* Campos Customizados Antigos - Removidos, agora baseados em subcategoria */}
-              {false && selectedCategoryId && customFields && customFields.length > 0 && (
+              {/* REMOVER COMPLETAMENTE OS CAMPOS POR CATEGORIA */}
+              {false && false && selectedCategoryId && customFields && customFields.length > 0 && (
                 <div className="mt-4 space-y-4 border-t pt-4">
                   <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     Informações Específicas da Categoria

@@ -58,24 +58,11 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
     enabled: isOpen && !!formData.responsibleDepartment
   });
 
-  // Buscar campos customizados para categoria selecionada E departamento
+  // DESABILITAR campos customizados - agora baseados em subcategorias
   const { data: customFields = [] } = useQuery<CustomField[]>({
-    queryKey: ["/api/custom-fields/category", selectedCategoryId, formData.responsibleDepartment],
-    queryFn: async () => {
-      if (!selectedCategoryId || !formData.responsibleDepartment) return [];
-      
-      const response = await fetch(
-        `/api/custom-fields/category/${selectedCategoryId}?departmentId=${formData.responsibleDepartment}`
-      );
-      
-      if (!response.ok) {
-        console.error('Error fetching custom fields:', response.statusText);
-        return [];
-      }
-      
-      return response.json();
-    },
-    enabled: isOpen && !!selectedCategoryId && !!formData.responsibleDepartment,
+    queryKey: ["/api/custom-fields/disabled"],
+    queryFn: async () => [],
+    enabled: false,
   });
 
   // Buscar dados do usuário logado
