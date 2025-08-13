@@ -161,53 +161,74 @@ export class DatabaseStorage implements IStorage {
     // Get basic tickets
     const ticketList = await this.getAllTickets();
     
-    // Get SLA rules
+    // Get SLA rules and categories
     const slaRulesList = await this.getSLARules();
+    const categoriesList = await this.getAllCategories();
+    
+    console.log(`📊 Categories loaded: ${categoriesList?.length || 0}`);
+    if (categoriesList?.length > 0) {
+      console.log(`📝 Sample categories:`, categoriesList.slice(0, 2).map(c => ({ id: c.id, name: c.name })));
+    }
     
     // Calculate SLA for each ticket
     const ticketsWithSLA = await Promise.all(ticketList.map(async (ticket) => {
       try {
-        // Find applicable SLA rule
+        // Find applicable SLA rule based on priority, category or department
         let applicableSLA = null;
+        let slaHours = 4; // Default 4 hours
+        let slaSourceName = 'padrão';
         
-        // Priority: Category > Department > General
-        if (ticket.category) {
-          applicableSLA = slaRulesList.find(rule => rule.category === ticket.category && rule.isActive);
+        // Try to find SLA rule by category first (highest priority)
+        if (ticket.category && slaRulesList?.length > 0 && categoriesList?.length > 0) {
+          // Find category name by ID
+          const categoryObj = categoriesList.find(cat => cat.id === ticket.category);
+          const categoryName = categoryObj?.name;
+          
+          if (categoryName) {
+            applicableSLA = slaRulesList.find(rule => 
+              rule.category === categoryName && rule.isActive
+            );
+            console.log(`🔍 SLA rule search by category "${categoryName}" (ID: ${ticket.category}):`, applicableSLA ? 'FOUND' : 'NOT FOUND');
+            if (applicableSLA) {
+              console.log(`✅ Found SLA rule for category: ${JSON.stringify(applicableSLA)}`);
+            }
+          } else {
+            console.log(`⚠️ Category not found for ID: ${ticket.category}`);
+          }
         }
         
-        if (!applicableSLA && ticket.requesterDepartmentId) {
-          applicableSLA = slaRulesList.find(rule => rule.departmentId === ticket.requesterDepartmentId && rule.isActive);
+        // Then by priority
+        if (!applicableSLA && ticket.priority && slaRulesList?.length > 0) {
+          applicableSLA = slaRulesList.find(rule => 
+            rule.priority === ticket.priority && rule.isActive
+          );
+          console.log(`🔍 SLA rule search by priority "${ticket.priority}":`, applicableSLA ? 'FOUND' : 'NOT FOUND');
         }
         
-        if (!applicableSLA) {
-          applicableSLA = slaRulesList.find(rule => rule.priority === ticket.priority && rule.isActive);
+        // Then by department
+        if (!applicableSLA && ticket.requesterDepartmentId && slaRulesList?.length > 0) {
+          applicableSLA = slaRulesList.find(rule => 
+            rule.departmentId === ticket.requesterDepartmentId && rule.isActive
+          );
         }
         
-        // Default SLA if no rule found
-        if (!applicableSLA) {
-          applicableSLA = {
-            responseTime: 2,
-            resolutionTime: 4,
-            name: 'SLA Padrão'
-          };
+        // Use configured SLA hours if found
+        if (applicableSLA && applicableSLA.resolutionTime) {
+          slaHours = applicableSLA.resolutionTime;
+          slaSourceName = applicableSLA.name || 'configurado';
+          console.log(`✅ Using SLA rule: ${slaSourceName}, ${slaHours}h for ticket ${ticket.ticketNumber}`);
+        } else {
+          console.log(`⚠️ No SLA rule found for ticket ${ticket.ticketNumber}, using default 4h`);
         }
         
-        // Get pause records (implement if needed)
-        const pauseRecords = []; // await this.getTicketPauseRecords(ticket.id);
-        
-        // Calculate SLA
-        const slaCalculation = calculateSLA(ticket, applicableSLA, pauseRecords);
-        
-        // Calculate progress percentage
+        // Calculate progress percentage based on creation time vs SLA limit
         const createdAt = new Date(ticket.createdAt);
         const now = ticket.resolvedAt ? new Date(ticket.resolvedAt) : new Date();
-        const totalMinutes = Math.max(1, (now.getTime() - createdAt.getTime()) / (1000 * 60));
+        const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
         
-        // Use resolution time for progress calculation
-        const slaLimitMinutes = applicableSLA.resolutionTime * 60;
-        const progressPercent = Math.min(100, (totalMinutes / slaLimitMinutes) * 100);
+        const progressPercent = Math.min(100, (totalHours / slaHours) * 100);
         
-        // Determine status
+        // Determine SLA status
         let slaStatus = 'met';
         if (progressPercent >= 100) {
           slaStatus = 'violated';
@@ -215,26 +236,34 @@ export class DatabaseStorage implements IStorage {
           slaStatus = 'at_risk';
         }
         
+        // Calculate deadline
+        const deadline = new Date(createdAt.getTime() + (slaHours * 60 * 60 * 1000));
+        
         return {
           ...ticket,
-          slaHoursTotal: applicableSLA.resolutionTime,
-          slaHoursRemaining: Math.max(0, applicableSLA.resolutionTime - (totalMinutes / 60)),
+          slaHoursTotal: slaHours,
+          slaHoursRemaining: Math.max(0, slaHours - totalHours),
           slaProgressPercent: Math.round(progressPercent),
           slaStatus: slaStatus,
-          slaSource: applicableSLA.name,
-          slaDeadline: slaCalculation?.slaDeadline || 'N/A'
+          slaSource: slaSourceName,
+          slaDeadline: deadline.toLocaleString('pt-BR')
         };
       } catch (error) {
         console.error(`Error calculating SLA for ticket ${ticket.id}:`, error);
-        // Return ticket with default SLA values
+        // Return ticket with default 4-hour SLA
+        const createdAt = new Date(ticket.createdAt);
+        const now = ticket.resolvedAt ? new Date(ticket.resolvedAt) : new Date();
+        const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+        const progressPercent = Math.min(100, (totalHours / 4) * 100);
+        
         return {
           ...ticket,
           slaHoursTotal: 4,
-          slaHoursRemaining: 4,
-          slaProgressPercent: 0,
-          slaStatus: 'met',
+          slaHoursRemaining: Math.max(0, 4 - totalHours),
+          slaProgressPercent: Math.round(progressPercent),
+          slaStatus: progressPercent >= 100 ? 'violated' : (progressPercent >= 80 ? 'at_risk' : 'met'),
           slaSource: 'padrão',
-          slaDeadline: 'N/A'
+          slaDeadline: new Date(createdAt.getTime() + (4 * 60 * 60 * 1000)).toLocaleString('pt-BR')
         };
       }
     }));
