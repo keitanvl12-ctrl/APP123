@@ -148,13 +148,26 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
           .then(fields => {
             console.log("✅ Campos customizados da subcategoria encontrados:", fields);
             
-            // Buscar valores dos campos customizados para este ticket específico
-            if (fields.length > 0) {
-              return fetch(`/api/tickets/${ticket.id}/custom-field-values`, {
-                credentials: 'include'
-              }).then(res => res.json());
+            // Extrair valores dos campos customizados do formData do ticket
+            if (fields.length > 0 && ticket.formData) {
+              try {
+                const formData = typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData;
+                const customFieldsData = formData.customFields || formData.originalRequestBody?.customFields || {};
+                
+                // Mapear os campos com seus valores
+                const fieldsWithValues = fields.map(field => ({
+                  customField: field,
+                  value: customFieldsData[field.id] || 'Não informado'
+                }));
+                
+                console.log("✅ Campos mapeados com valores do formData:", fieldsWithValues);
+                return Promise.resolve(fieldsWithValues);
+              } catch (error) {
+                console.error("❌ Erro ao parsear formData:", error);
+                return Promise.resolve([]);
+              }
             }
-            return [];
+            return Promise.resolve([]);
           })
           .then(values => {
             console.log("✅ Valores dos campos encontrados:", values);

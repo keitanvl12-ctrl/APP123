@@ -154,6 +154,8 @@ export class DatabaseStorage implements IStorage {
         requesterName: tickets.requesterName,
         requesterEmail: tickets.requesterEmail,
         requesterPhone: tickets.requesterPhone,
+        requesterDepartmentId: tickets.requesterDepartmentId,
+        responsibleDepartmentId: tickets.responsibleDepartmentId,
         formData: tickets.formData,
         createdByUser: {
           id: users.id,
@@ -161,13 +163,30 @@ export class DatabaseStorage implements IStorage {
           email: users.email,
           role: users.role,
         },
+        assignedToUser: {
+          id: assignedUser.id,
+          name: assignedUser.name,
+          email: assignedUser.email,
+          role: assignedUser.role,
+        },
         categoryName: categories.name,
         subcategoryName: subcategories.name,
+        requesterDepartment: {
+          id: requesterDept.id,
+          name: requesterDept.name,
+        },
+        responsibleDepartment: {
+          id: responsibleDept.id,
+          name: responsibleDept.name,
+        },
       })
       .from(tickets)
       .leftJoin(users, eq(tickets.createdBy, users.id))
+      .leftJoin(assignedUser, eq(tickets.assignedTo, assignedUser.id))
       .leftJoin(categories, eq(tickets.categoryId, categories.id))
       .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
+      .leftJoin(requesterDept, eq(tickets.requesterDepartmentId, requesterDept.id))
+      .leftJoin(responsibleDept, eq(tickets.responsibleDepartmentId, responsibleDept.id))
       .orderBy(desc(tickets.createdAt));
 
     return ticketList;
