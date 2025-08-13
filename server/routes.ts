@@ -1009,13 +1009,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Configuration routes
+  // Configuration routes  
   app.get("/api/config/status", async (req, res) => {
     try {
-      const statusConfigs = await storage.getAllStatusConfigs();
+      console.log("📊 Buscando configurações de status...");
+      const statusConfigs = await storage.getAllStatusConfig();
+      console.log("📊 Status configs encontrados:", statusConfigs.length);
       res.json(statusConfigs);
     } catch (error) {
-      console.error("Error fetching status configs:", error);
+      console.error("❌ Error fetching status configs:", error);
       res.status(500).json({ message: "Failed to fetch status configurations" });
     }
   });
@@ -1052,10 +1054,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/config/priority", async (req, res) => {
     try {
-      const priorityConfigs = await storage.getAllPriorityConfigs();
+      console.log("📊 Buscando configurações de prioridade...");
+      const priorityConfigs = await storage.getAllPriorityConfig();
+      console.log("📊 Priority configs encontrados:", priorityConfigs.length);
       res.json(priorityConfigs);
     } catch (error) {
-      console.error("Error fetching priority configs:", error);
+      console.error("❌ Error fetching priority configs:", error);
       res.status(500).json({ message: "Failed to fetch priority configurations" });
     }
   });
@@ -1416,26 +1420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Configuration endpoints
-  app.get("/api/config/status", async (req, res) => {
-    try {
-      const statusConfigs = await storage.getAllStatusConfig();
-      res.json(statusConfigs);
-    } catch (error) {
-      console.error("Error fetching status config:", error);
-      res.status(500).json({ message: "Failed to fetch status configuration" });
-    }
-  });
 
-  app.get("/api/config/priority", async (req, res) => {
-    try {
-      const priorityConfigs = await storage.getAllPriorityConfig();
-      res.json(priorityConfigs);
-    } catch (error) {
-      console.error("Error fetching priority config:", error);
-      res.status(500).json({ message: "Failed to fetch priority configuration" });
-    }
-  });
 
   app.get("/api/config/sla", async (req, res) => {
     try {
@@ -1447,16 +1432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Custom fields endpoint
-  app.get("/api/custom-fields", async (req, res) => {
-    try {
-      const fields = await storage.getCustomFieldsByForm('default');
-      res.json(fields);
-    } catch (error) {
-      console.error("Error fetching custom fields:", error);
-      res.status(500).json({ message: "Failed to fetch custom fields" });
-    }
-  });
+
 
   const httpServer = createServer(app);
   return httpServer;

@@ -43,6 +43,9 @@ export interface IStorage {
   getAllStatusConfig(): Promise<any[]>;
   getAllPriorityConfig(): Promise<any[]>;
   getAllSlaConfig(): Promise<any[]>;
+  getSLARules(): Promise<any[]>;
+  createSLARule(rule: any): Promise<any>;
+  updateSLARule(id: string, rule: any): Promise<any>;
   getCustomFieldsByForm(formType: string): Promise<any[]>;
 }
 
@@ -408,6 +411,61 @@ export class DatabaseStorage implements IStorage {
     ];
   }
 
+  async getSLARules(): Promise<any[]> {
+    try {
+      console.log("📊 Buscando regras SLA...");
+      const slaRulesResult = await db.select().from(slaRules);
+      console.log("📊 SLA rules encontrados:", slaRulesResult.length);
+      return slaRulesResult;
+    } catch (error) {
+      console.error("❌ Error fetching SLA rules:", error);
+      // Retornar dados padrão se tabela não existir
+      return [
+        {
+          id: '1',
+          name: 'SLA Crítico',
+          priority: 'critical',
+          responseTime: 1,
+          resolutionTime: 4,
+          escalationRules: JSON.stringify([
+            { level: 1, hoursAfter: 1, notifyRoles: ['supervisor'] },
+            { level: 2, hoursAfter: 2, notifyRoles: ['administrador'] }
+          ]),
+          isActive: true
+        },
+        {
+          id: '2',
+          name: 'SLA Alto',
+          priority: 'high',
+          responseTime: 2,
+          resolutionTime: 8,
+          escalationRules: JSON.stringify([
+            { level: 1, hoursAfter: 4, notifyRoles: ['supervisor'] }
+          ]),
+          isActive: true
+        },
+        {
+          id: '3',
+          name: 'SLA Médio',
+          priority: 'medium',
+          responseTime: 4,
+          resolutionTime: 24,
+          escalationRules: JSON.stringify([]),
+          isActive: true
+        },
+        {
+          id: '4',
+          name: 'SLA Baixo',
+          priority: 'low',
+          responseTime: 8,
+          resolutionTime: 72,
+          escalationRules: JSON.stringify([]),
+          isActive: true
+        }
+      ];
+    }
+  }
+
   async getAllSlaConfig(): Promise<any[]> {
     try {
       const slaConfigResult = await db.select().from(slaConfig);
@@ -602,13 +660,39 @@ export class DatabaseStorage implements IStorage {
       console.log(`🗑️ Valores do campo deletados: ${id}`);
       
       // Depois deletar o campo
-      const result = await db.delete(customFields).where(eq(customFields.id, id));
-      console.log(`✅ Campo customizado deletado: ${id}`, result);
+      await db.delete(customFields).where(eq(customFields.id, id));
+      console.log(`✅ Campo customizado deletado: ${id}`);
       
       return true;
     } catch (error) {
       console.error(`❌ Erro ao deletar campo customizado ${id}:`, error);
       return false;
+    }
+  }
+
+  async createSLARule(ruleData: any): Promise<any> {
+    try {
+      console.log("📊 Criando regra SLA:", ruleData);
+      const [rule] = await db.insert(slaRules).values(ruleData).returning();
+      return rule;
+    } catch (error) {
+      console.error("❌ Error creating SLA rule:", error);
+      throw error;
+    }
+  }
+
+  async updateSLARule(id: string, ruleData: any): Promise<any> {
+    try {
+      console.log("📊 Atualizando regra SLA:", id, ruleData);
+      const [rule] = await db
+        .update(slaRules)
+        .set({ ...ruleData, updatedAt: new Date() })
+        .where(eq(slaRules.id, id))
+        .returning();
+      return rule;
+    } catch (error) {
+      console.error("❌ Error updating SLA rule:", error);
+      throw error;
     }
   }
 
