@@ -108,7 +108,7 @@ function AppRouter() {
               <Route path="/create-ticket" component={CreateTicket} />
               
               <Route path="/analytics">
-                <ProtectedRoute requiredRole="supervisor">
+                <ProtectedRoute requiredRole="system_admin">
                   <Analytics />
                 </ProtectedRoute>
               </Route>
@@ -117,31 +117,31 @@ function AppRouter() {
               <Route path="/sla" component={SLA} />
               
               <Route path="/user-management">
-                <ProtectedRoute requiredRole="administrador">
+                <ProtectedRoute requiredRole="users_view">
                   <UserManagement />
                 </ProtectedRoute>
               </Route>
               
               <Route path="/departments">
-                <ProtectedRoute requiredRole="supervisor">
+                <ProtectedRoute requiredRole="departamentos_visualizar">
                   <DepartmentManager />
                 </ProtectedRoute>
               </Route>
               
               <Route path="/categories">
-                <ProtectedRoute requiredRole="supervisor">
+                <ProtectedRoute requiredRole="system_admin">
                   <Categories />
                 </ProtectedRoute>
               </Route>
 
               <Route path="/subcategories">
-                <ProtectedRoute requiredRole="supervisor">
+                <ProtectedRoute requiredRole="system_admin">
                   <Subcategories />
                 </ProtectedRoute>
               </Route>
 
               <Route path="/fields">
-                <ProtectedRoute requiredRole="supervisor">
+                <ProtectedRoute requiredRole="system_admin">
                   <CustomFieldsManager />
                 </ProtectedRoute>
               </Route>
@@ -150,7 +150,7 @@ function AppRouter() {
               <Route path="/workflow-approvals" component={WorkflowApprovals} />
               
               <Route path="/reports">
-                <ProtectedRoute requiredRole="supervisor">
+                <ProtectedRoute requiredRole="reports_view">
                   <ReportsNew />
                 </ProtectedRoute>
               </Route>
@@ -158,25 +158,25 @@ function AppRouter() {
               <Route path="/user-profiles" component={UserProfiles} />
               
               <Route path="/sla-config">
-                <ProtectedRoute requiredRole="supervisor">
+                <ProtectedRoute requiredRole="sistema_gerenciar_sla">
                   <SLAConfiguration />
                 </ProtectedRoute>
               </Route>
               
               <Route path="/config">
-                <ProtectedRoute requiredRole="administrador">
+                <ProtectedRoute requiredRole="sistema_gerenciar_configuracoes">
                   <ConfigurationPage />
                 </ProtectedRoute>
               </Route>
               
               <Route path="/permissions">
-                <ProtectedRoute requiredRole="administrador">
+                <ProtectedRoute requiredRole="sistema_gerenciar_funcoes">
                   <FunctionConfig />
                 </ProtectedRoute>
               </Route>
               
               <Route path="/permissions-old">
-                <ProtectedRoute requiredRole="administrador">
+                <ProtectedRoute requiredRole="sistema_gerenciar_funcoes">
                   <PermissionsConfig />
                 </ProtectedRoute>
               </Route>
