@@ -19,7 +19,9 @@ interface SLARule {
   departmentName?: string;
   category?: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
-  timeHours: number;
+  responseTime: number;
+  resolutionTime: number;
+  timeHours?: number; // para compatibilidade
   isActive: boolean;
   createdAt: string;
 }
@@ -123,7 +125,7 @@ export default function SLAConfiguration() {
       departmentId: sla.departmentId || '',
       category: sla.category || '',
       priority: sla.priority,
-      timeHours: sla.timeHours || 24,
+      timeHours: sla.resolutionTime || sla.timeHours || 24,
       isActive: sla.isActive
     });
     
@@ -173,11 +175,12 @@ export default function SLAConfiguration() {
     // Preparar dados baseado no tipo de SLA
     const submitData = {
       name: formData.name,
-      timeHours: formData.timeHours,
+      responseTime: Math.floor(formData.timeHours / 4), // tempo de resposta é 1/4 do tempo de resolução
+      resolutionTime: formData.timeHours,
       isActive: formData.isActive,
-      departmentId: slaType === 'department' ? formData.departmentId : null,
-      category: slaType === 'category' ? formData.category : null,
-      priority: slaType === 'priority' ? formData.priority : null
+      departmentId: slaType === 'department' ? formData.departmentId || undefined : undefined,
+      category: slaType === 'category' ? formData.category || undefined : undefined,
+      priority: slaType === 'priority' ? formData.priority || undefined : undefined
     };
     
     saveSLAMutation.mutate(submitData);
@@ -205,10 +208,14 @@ export default function SLAConfiguration() {
     );
   };
 
-  const formatTime = (hours: number) => {
-    if (hours < 1) return `${hours * 60}min`;
-    if (hours < 24) return `${hours}h`;
-    return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+  const formatTime = (hours: number | undefined | null) => {
+    if (!hours || isNaN(hours)) return 'N/A';
+    const numHours = Number(hours);
+    if (numHours < 1) return `${Math.round(numHours * 60)}min`;
+    if (numHours < 24) return `${numHours}h`;
+    const days = Math.floor(numHours / 24);
+    const remainingHours = numHours % 24;
+    return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
   };
 
   const getSLAType = (sla: SLARule) => {
@@ -396,9 +403,15 @@ export default function SLAConfiguration() {
                         {!sla.departmentId && !sla.category && getPriorityBadge(sla.priority)}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-1">
-                          <Target className="w-4 h-4 text-green-500" />
-                          <span>{formatTime(sla.timeHours)}</span>
+                        <div className="flex flex-col space-y-1">
+                          <div className="flex items-center space-x-1">
+                            <Target className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm">Resposta: {formatTime(sla.responseTime)}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Target className="w-4 h-4 text-green-500" />
+                            <span className="text-sm">Resolução: {formatTime(sla.resolutionTime)}</span>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
