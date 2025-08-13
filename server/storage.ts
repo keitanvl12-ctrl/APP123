@@ -637,6 +637,17 @@ export class DatabaseStorage implements IStorage {
     ];
   }
 
+  async getAllDepartments(): Promise<any[]> {
+    try {
+      const departments = await db.select().from(department);
+      console.log(`🏢 Departments found: ${departments.length}`);
+      return departments;
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      return [];
+    }
+  }
+
   async getDepartmentPerformance(): Promise<any[]> {
     return [
       { name: 'TI', tickets: 45, resolved: 40, pending: 5, avgTime: '2.1h' },
