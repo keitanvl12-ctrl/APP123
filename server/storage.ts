@@ -7,6 +7,7 @@ import {
   statusConfig, priorityConfig, slaConfig, slaRules,
   type User, type InsertUser, type Ticket, type InsertTicket
 } from "@shared/schema";
+import { calculateSLA } from "./slaCalculator";
 
 export interface IStorage {
   // User operations
@@ -19,6 +20,7 @@ export interface IStorage {
   
   // Ticket operations
   getAllTickets(): Promise<any[]>;
+  getAllTicketsWithSLA(): Promise<any[]>;
   getTicket(id: string): Promise<any>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
   updateTicket(id: string, updates: any): Promise<Ticket>;
@@ -153,6 +155,91 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(tickets.createdAt));
 
     return ticketList;
+  }
+
+  async getAllTicketsWithSLA(): Promise<any[]> {
+    // Get basic tickets
+    const ticketList = await this.getAllTickets();
+    
+    // Get SLA rules
+    const slaRulesList = await this.getSLARules();
+    
+    // Calculate SLA for each ticket
+    const ticketsWithSLA = await Promise.all(ticketList.map(async (ticket) => {
+      try {
+        // Find applicable SLA rule
+        let applicableSLA = null;
+        
+        // Priority: Category > Department > General
+        if (ticket.category) {
+          applicableSLA = slaRulesList.find(rule => rule.category === ticket.category && rule.isActive);
+        }
+        
+        if (!applicableSLA && ticket.requesterDepartmentId) {
+          applicableSLA = slaRulesList.find(rule => rule.departmentId === ticket.requesterDepartmentId && rule.isActive);
+        }
+        
+        if (!applicableSLA) {
+          applicableSLA = slaRulesList.find(rule => rule.priority === ticket.priority && rule.isActive);
+        }
+        
+        // Default SLA if no rule found
+        if (!applicableSLA) {
+          applicableSLA = {
+            responseTime: 2,
+            resolutionTime: 4,
+            name: 'SLA Padrão'
+          };
+        }
+        
+        // Get pause records (implement if needed)
+        const pauseRecords = []; // await this.getTicketPauseRecords(ticket.id);
+        
+        // Calculate SLA
+        const slaCalculation = calculateSLA(ticket, applicableSLA, pauseRecords);
+        
+        // Calculate progress percentage
+        const createdAt = new Date(ticket.createdAt);
+        const now = ticket.resolvedAt ? new Date(ticket.resolvedAt) : new Date();
+        const totalMinutes = Math.max(1, (now.getTime() - createdAt.getTime()) / (1000 * 60));
+        
+        // Use resolution time for progress calculation
+        const slaLimitMinutes = applicableSLA.resolutionTime * 60;
+        const progressPercent = Math.min(100, (totalMinutes / slaLimitMinutes) * 100);
+        
+        // Determine status
+        let slaStatus = 'met';
+        if (progressPercent >= 100) {
+          slaStatus = 'violated';
+        } else if (progressPercent >= 80) {
+          slaStatus = 'at_risk';
+        }
+        
+        return {
+          ...ticket,
+          slaHoursTotal: applicableSLA.resolutionTime,
+          slaHoursRemaining: Math.max(0, applicableSLA.resolutionTime - (totalMinutes / 60)),
+          slaProgressPercent: Math.round(progressPercent),
+          slaStatus: slaStatus,
+          slaSource: applicableSLA.name,
+          slaDeadline: slaCalculation?.slaDeadline || 'N/A'
+        };
+      } catch (error) {
+        console.error(`Error calculating SLA for ticket ${ticket.id}:`, error);
+        // Return ticket with default SLA values
+        return {
+          ...ticket,
+          slaHoursTotal: 4,
+          slaHoursRemaining: 4,
+          slaProgressPercent: 0,
+          slaStatus: 'met',
+          slaSource: 'padrão',
+          slaDeadline: 'N/A'
+        };
+      }
+    }));
+    
+    return ticketsWithSLA;
   }
 
   async getTicket(id: string): Promise<any> {

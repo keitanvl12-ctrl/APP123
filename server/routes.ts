@@ -109,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Para administradores, buscar TODOS os tickets sem filtros
       if (user && (user.role === 'admin' || user.role === 'administrador')) {
         console.log('Admin user requesting all tickets');
-        const tickets = await storage.getAllTickets();
+        const tickets = await storage.getAllTicketsWithSLA();
         console.log(`Admin got ${tickets.length} tickets`);
         res.json(tickets);
         return;
@@ -174,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Fallback - for testing, return all tickets without any user filtering
       console.log('Fetching all tickets for testing (no user filtering)');
-      const allTickets = await storage.getAllTickets();
+      const allTickets = await storage.getAllTicketsWithSLA();
       console.log(`Returning ${allTickets.length} tickets for testing`);
       res.json(allTickets);
     } catch (error) {
