@@ -6,8 +6,8 @@ import { z } from "zod";
 // Definir hierarquia de roles - ordem importa para prioridade
 export const roleEnum = pgEnum('user_role', ['solicitante', 'atendente', 'supervisor', 'administrador']);
 
-// Usar o nome real da tabela existente
-export const department = pgTable("departments", {
+// Departments/Workgroups table
+export const departments = pgTable("departments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   description: text("description"),
@@ -17,9 +17,6 @@ export const department = pgTable("departments", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Alias para compatibilidade
-export const departments = department;
-
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
@@ -28,7 +25,6 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   role: text("role").notNull().default("solicitante"), // admin, supervisor, atendente, solicitante
   departmentId: varchar("department_id").references(() => departments.id),
-  roleId: varchar("role_id"), // Novo campo para compatibilidade
   isActive: boolean("is_active").default(true).notNull(), // Para bloquear/desbloquear usuários
   isBlocked: boolean("is_blocked").default(false).notNull(), // Status de bloqueio
   lastLoginAt: timestamp("last_login_at"),

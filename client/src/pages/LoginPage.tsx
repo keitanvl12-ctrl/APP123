@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, LogIn, Mail, Lock, Building2, Shield } from 'lucide-react';
 import { FaMicrosoft } from 'react-icons/fa';
-import { useAuth } from '@/hooks/useAuth';
 import OpusLogo from '@assets/Logo Grupo OPUS - azul escuro.azul claro1_1754938736660.png';
 
 const LoginPage: React.FC = () => {
@@ -17,7 +16,6 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { login } = useAuth();
 
   // Check if already logged in
   useEffect(() => {
@@ -47,14 +45,9 @@ const LoginPage: React.FC = () => {
       if (response.ok) {
         console.log('Login bem-sucedido, dados recebidos:', data);
         
-        // Use o método login do hook de autenticação para conectar permissões
-        if (login) {
-          login(data.token, data.user);
-        } else {
-          // Fallback se hook não estiver disponível
-          localStorage.setItem('authToken', data.token);
-          localStorage.setItem('currentUser', JSON.stringify(data.user));
-        }
+        // Store authentication data
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
 
         toast({
           title: "Login realizado com sucesso",
@@ -92,44 +85,28 @@ const LoginPage: React.FC = () => {
 
   const demoAccounts = [
     {
-      role: 'Admin (Felipe)',
-      email: 'felipe.lacerda@grupoopus.com',
+      role: 'Administrador',
+      email: 'admin@empresa.com',
       password: 'admin123',
       color: 'text-purple-600',
       icon: Shield,
       description: 'Acesso total ao sistema'
     },
     {
-      role: 'Administrador',
-      email: 'admin@empresa.com',
-      password: 'admin123',
-      color: 'text-red-600',
-      icon: Shield,
-      description: 'Administrador padrão'
-    },
-    {
       role: 'Supervisor',
       email: 'maria.santos@empresa.com', 
-      password: 'senha123',
+      password: 'maria123',
       color: 'text-blue-600',
       icon: Building2,
-      description: 'Supervisora - Maria Santos'
+      description: 'Gerencia departamentos'
     },
     {
-      role: 'Atendente',
+      role: 'Colaborador',
       email: 'ana.costa@empresa.com',
-      password: 'senha123',
+      password: 'ana123',
       color: 'text-green-600',
       icon: LogIn,
-      description: 'Atendente - Ana Costa'
-    },
-    {
-      role: 'Solicitante',
-      email: 'carlos.oliveira@empresa.com',
-      password: 'carlos123',
-      color: 'text-orange-600',
-      icon: LogIn,
-      description: 'Solicitante - Carlos Oliveira'
+      description: 'Usuário padrão'
     }
   ];
 

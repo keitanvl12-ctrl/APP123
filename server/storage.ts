@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { eq, and, desc, or, sql, count, asc, like, inArray } from "drizzle-orm";
 import { 
-  users, tickets, comments, department, attachments,
+  users, tickets, comments, departments, attachments,
   systemRoles, systemPermissions, rolePermissions,
   categories, subcategories, customFields, customFieldValues,
   statusConfig, priorityConfig, slaConfig, slaRules,
@@ -53,9 +53,6 @@ export interface IStorage {
   updateSubcategory(id: string, updates: Partial<Subcategory>): Promise<Subcategory>;
   deleteSubcategory(id: string): Promise<boolean>;
   getAllStatusConfig(): Promise<any[]>;
-  createStatusConfig(config: any): Promise<any>;
-  updateStatusConfig(id: string, updates: any): Promise<any>;
-  deleteStatusConfig(id: string): Promise<boolean>;
   getAllPriorityConfig(): Promise<any[]>;
   getAllSlaConfig(): Promise<any[]>;
   getSLARules(): Promise<any[]>;
@@ -138,51 +135,43 @@ export class DatabaseStorage implements IStorage {
 
   // Ticket Management
   async getAllTickets(): Promise<any[]> {
-    try {
-      console.log("📋 Fetching all tickets...");
-      
-      const ticketList = await db
-        .select({
-          id: tickets.id,
-          ticketNumber: tickets.ticketNumber,
-          subject: tickets.subject,
-          description: tickets.description,
-          status: tickets.status,
-          priority: tickets.priority,
-          categoryId: tickets.categoryId,
-          subcategoryId: tickets.subcategoryId,
-          pausedAt: tickets.pausedAt,
-          pauseReason: tickets.pauseReason,
-          createdBy: tickets.createdBy,
-          assignedTo: tickets.assignedTo,
-          createdAt: tickets.createdAt,
-          updatedAt: tickets.updatedAt,
-          resolvedAt: tickets.resolvedAt,
-          requesterName: tickets.requesterName,
-          requesterEmail: tickets.requesterEmail,
-          requesterPhone: tickets.requesterPhone,
-          formData: tickets.formData,
-          createdByUser: {
-            id: users.id,
-            name: users.name,
-            email: users.email,
-            role: users.role,
-          },
-          categoryName: categories.name,
-          subcategoryName: subcategories.name,
-        })
-        .from(tickets)
-        .leftJoin(users, eq(tickets.createdBy, users.id))
-        .leftJoin(categories, eq(tickets.categoryId, categories.id))
-        .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
-        .orderBy(desc(tickets.createdAt));
+    const ticketList = await db
+      .select({
+        id: tickets.id,
+        ticketNumber: tickets.ticketNumber,
+        subject: tickets.subject,
+        description: tickets.description,
+        status: tickets.status,
+        priority: tickets.priority,
+        categoryId: tickets.categoryId,
+        subcategoryId: tickets.subcategoryId,
+        pausedAt: tickets.pausedAt,
+        pauseReason: tickets.pauseReason,
+        createdBy: tickets.createdBy,
+        assignedTo: tickets.assignedTo,
+        createdAt: tickets.createdAt,
+        updatedAt: tickets.updatedAt,
+        resolvedAt: tickets.resolvedAt,
+        requesterName: tickets.requesterName,
+        requesterEmail: tickets.requesterEmail,
+        requesterPhone: tickets.requesterPhone,
+        formData: tickets.formData,
+        createdByUser: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+        },
+        categoryName: categories.name,
+        subcategoryName: subcategories.name,
+      })
+      .from(tickets)
+      .leftJoin(users, eq(tickets.createdBy, users.id))
+      .leftJoin(categories, eq(tickets.categoryId, categories.id))
+      .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
+      .orderBy(desc(tickets.createdAt));
 
-      console.log("✅ Found tickets:", ticketList.length);
-      return ticketList;
-    } catch (error) {
-      console.error("❌ Error fetching tickets:", error);
-      return [];
-    }
+    return ticketList;
   }
 
   async getAllTicketsWithSLA(): Promise<any[]> {
@@ -387,8 +376,6 @@ export class DatabaseStorage implements IStorage {
         priority: tickets.priority,
         categoryId: tickets.categoryId,
         subcategoryId: tickets.subcategoryId,
-        pausedAt: tickets.pausedAt,
-        pauseReason: tickets.pauseReason,
         createdBy: tickets.createdBy,
         assignedTo: tickets.assignedTo,
         createdAt: tickets.createdAt,
@@ -404,13 +391,9 @@ export class DatabaseStorage implements IStorage {
           email: users.email,
           role: users.role,
         },
-        categoryName: categories.name,
-        subcategoryName: subcategories.name,
       })
       .from(tickets)
       .leftJoin(users, eq(tickets.createdBy, users.id))
-      .leftJoin(categories, eq(tickets.categoryId, categories.id))
-      .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
       .where(eq(tickets.id, id));
 
     if (!ticket) return undefined;
@@ -439,9 +422,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTicket(ticket: InsertTicket): Promise<Ticket> {
-    // Generate ticket number - create a mutable copy
-    const ticketData: any = { ...ticket };
-    if (!ticketData.ticketNumber) {
+    // Generate ticket number if not provided
+    if (!ticket.ticketNumber) {
       // Find the highest ticket number by extracting all ticket numbers and finding max
       const allTickets = await db
         .select({ ticketNumber: tickets.ticketNumber })
@@ -474,7 +456,7 @@ export class DatabaseStorage implements IStorage {
           .limit(1);
         
         if (existingTicket.length === 0) {
-          ticketData.ticketNumber = candidateNumber;
+          ticket.ticketNumber = candidateNumber;
           break;
         }
         
@@ -486,8 +468,8 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    console.log('🎫 Creating ticket with number:', ticketData.ticketNumber);
-    const [newTicket] = await db.insert(tickets).values(ticketData).returning();
+    console.log('🎫 Creating ticket with number:', ticket.ticketNumber);
+    const [newTicket] = await db.insert(tickets).values(ticket).returning();
     return newTicket;
   }
 
@@ -638,17 +620,6 @@ export class DatabaseStorage implements IStorage {
     ];
   }
 
-  async getAllDepartments(): Promise<any[]> {
-    try {
-      const departments = await db.select().from(department);
-      console.log(`🏢 Departments found: ${departments.length}`);
-      return departments;
-    } catch (error) {
-      console.error("Error fetching departments:", error);
-      return [];
-    }
-  }
-
   async getDepartmentPerformance(): Promise<any[]> {
     return [
       { name: 'TI', tickets: 45, resolved: 40, pending: 5, avgTime: '2.1h' },
@@ -733,40 +704,6 @@ export class DatabaseStorage implements IStorage {
       { id: 'high', name: 'Alta', value: 'high', color: '#ef4444', order: 3, isActive: true, isDefault: false },
       { id: 'critical', name: 'Crítica', value: 'critical', color: '#dc2626', order: 4, isActive: true, isDefault: false }
     ];
-  }
-
-  async createStatusConfig(config: any): Promise<any> {
-    try {
-      const [result] = await db.insert(statusConfig).values(config).returning();
-      return result;
-    } catch (error) {
-      console.error("Error creating status config:", error);
-      throw error;
-    }
-  }
-
-  async updateStatusConfig(id: string, updates: any): Promise<any> {
-    try {
-      const [result] = await db
-        .update(statusConfig)
-        .set({ ...updates, updatedAt: new Date() })
-        .where(eq(statusConfig.id, id))
-        .returning();
-      return result;
-    } catch (error) {
-      console.error("Error updating status config:", error);
-      throw error;
-    }
-  }
-
-  async deleteStatusConfig(id: string): Promise<boolean> {
-    try {
-      await db.delete(statusConfig).where(eq(statusConfig.id, id));
-      return true;
-    } catch (error) {
-      console.error("Error deleting status config:", error);
-      return false;
-    }
   }
 
   async getSLARules(): Promise<any[]> {
@@ -980,7 +917,15 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-
+  async getCustomFieldsByForm(formId: string): Promise<any[]> {
+    try {
+      const fields = await db.select().from(customFields);
+      return fields;
+    } catch (error) {
+      console.error("Error fetching custom fields:", error);
+      return [];
+    }
+  }
 
   async getCustomFieldsByCategoryAndDepartment(categoryId: string, departmentId: string): Promise<any[]> {
     try {
@@ -1179,7 +1124,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const [updatedValue] = await db
         .update(customFieldValues)
-        .set({ value })
+        .set({ value, updatedAt: new Date() })
         .where(
           and(
             eq(customFieldValues.ticketId, ticketId),
@@ -1240,7 +1185,20 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-
+  async getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]> {
+    try {
+      const subcat = await db
+        .select()
+        .from(subcategories)
+        .where(eq(subcategories.categoryId, categoryId))
+        .orderBy(subcategories.name);
+      console.log(`📊 Subcategories for category ${categoryId}: ${subcat.length}`);
+      return subcat;
+    } catch (error) {
+      console.error("Error fetching subcategories by category:", error);
+      return [];
+    }
+  }
 
   async createSubcategory(subcategoryData: InsertSubcategory): Promise<Subcategory> {
     try {

@@ -5,10 +5,9 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
-  hierarchy: string;
-  permissions?: string[];
-  department?: {
+  role: 'administrador' | 'supervisor' | 'colaborador';
+  hierarchy: 'administrador' | 'supervisor' | 'colaborador';
+  department: {
     id: string;
     name: string;
   };
@@ -40,8 +39,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (token && userData) {
           const user = JSON.parse(userData);
-          console.log('🔐 Inicializando auth com usuário:', user.name);
-          console.log('🔑 Permissões do usuário:', user.permissions?.length || 0);
           setUser(user);
         }
       } catch (error) {
@@ -69,46 +66,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasPermission = (permission: string): boolean => {
-    if (!user) {
-      console.log(`❌ hasPermission: usuário não autenticado`);
-      return false;
-    }
-
-    // Sistema de permissões universal: usar as permissões vindas do banco baseadas na função do usuário
-    if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
-      // Direct permission check - verificar se o usuário tem a permissão específica
-      if (user.permissions.includes(permission)) {
-        console.log(`✅ hasPermission: ${user.name} tem permissão ${permission}`);
-        return true;
-      }
-      
-      // Wildcard check para permissões como "tickets.*"
-      const hasWildcard = user.permissions.some(p => 
-        p.endsWith('*') && permission.startsWith(p.replace('*', ''))
-      );
-      if (hasWildcard) {
-        console.log(`✅ hasPermission: ${user.name} tem permissão wildcard para ${permission}`);
-        return true;
-      }
-    }
-
-    // Se chegou aqui, o usuário não tem a permissão específica
-    console.log(`❌ hasPermission: ${user.name} (${user.role}) - permissão ${permission} não encontrada`);
-    console.log(`🔍 Permissões disponíveis:`, user.permissions?.slice(0, 5));
-    return false;
-  };
-
-  const isAdmin = (): boolean => {
     if (!user) return false;
-    const role = user.role || user.hierarchy;
-    return role === 'administrador' || role === 'admin';
+
+    // Admin has all permissions
+    if (user.hierarchy === 'administrador') return true;
+
+    // Define permission hierarchy
+    const permissions = {
+      colaborador: [
+        'tickets.view_own',
+        'tickets.create',
+        'tickets.edit_own',
+        'profile.view'
+      ],
+      supervisor: [
+        'tickets.view_own',
+        'tickets.create', 
+        'tickets.edit_own',
+        'tickets.view_department',
+        'tickets.edit_department',
+        'tickets.assign',
+        'users.view_department',
+        'reports.view_department',
+        'categories.view',
+        'fields.view',
+        'profile.view'
+      ],
+      administrador: [
+        // All permissions
+        'tickets.*',
+        'users.*',
+        'departments.*',
+        'categories.*',
+        'fields.*',
+        'reports.*',
+        'permissions.*',
+        'roles.*',
+        'config.*',
+        'profile.*'
+      ]
+    };
+
+    const userPermissions = permissions[user.hierarchy] || [];
+    
+    // Check exact match or wildcard
+    return userPermissions.some(p => 
+      p === permission || 
+      (p.endsWith('.*') && permission.startsWith(p.replace('.*', '')))
+    );
   };
-  
-  const isSupervisor = (): boolean => {
-    if (!user) return false;
-    const role = user.role || user.hierarchy;
-    return role === 'supervisor' || isAdmin();
-  };
+
+  const isAdmin = (): boolean => user?.hierarchy === 'administrador';
+  const isSupervisor = (): boolean => user?.hierarchy === 'supervisor' || isAdmin();
 
   const value = {
     user,
@@ -134,4 +143,33 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+// HOC for protected routes
+export const withAuth = <P extends object>(
+  Component: React.ComponentType<P>,
+  requiredPermission?: string
+) => {
+  return (props: P) => {
+    const { isAuthenticated, hasPermission, isLoading } = useAuth();
+    const [, setLocation] = useLocation();
+
+    useEffect(() => {
+      if (!isLoading && !isAuthenticated) {
+        setLocation('/login');
+      } else if (requiredPermission && !hasPermission(requiredPermission)) {
+        setLocation('/unauthorized');
+      }
+    }, [isAuthenticated, hasPermission, isLoading, requiredPermission, setLocation]);
+
+    if (isLoading) {
+      return <div className="flex items-center justify-center h-screen">Carregando...</div>;
+    }
+
+    if (!isAuthenticated || (requiredPermission && !hasPermission(requiredPermission))) {
+      return null;
+    }
+
+    return <Component {...props} />;
+  };
 };
