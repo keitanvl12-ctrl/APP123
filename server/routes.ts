@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import authRoutes from "./routes/auth";
-import { verifyToken, requireRole, requireAdmin, requireSupervisor, filterByHierarchy, isAuthenticated } from "./middleware/authMiddleware";
+import { verifyToken, requireRole, requireAdmin, requireSupervisor, filterByHierarchy, type AuthenticatedRequest } from "./middleware/authMiddleware";
 import { 
   requirePermission, 
   requireAnyPermission,
@@ -21,8 +21,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.use("/api/auth", authRoutes);
   
-  // Apply real authentication middleware to all protected routes
-  app.use("/api", isAuthenticated);
+  // Apply JWT verification middleware to all protected routes
+  app.use("/api", verifyToken);
   
   // Registrar rotas de permissões
   app.use("/api/permissions", permissionRoutes);
