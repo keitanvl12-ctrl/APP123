@@ -498,6 +498,59 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
                 </div>
               )}
 
+              {/* TESTE EMERGENCIAL: Campo Subcategoria com destaque vermelho */}
+              <div style={{
+                padding: '20px',
+                border: '4px solid #ef4444',
+                borderRadius: '8px',
+                backgroundColor: '#fef2f2',
+                margin: '16px 0',
+                gridColumn: 'span 2'
+              }}>
+                <h3 style={{
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  color: '#dc2626',
+                  marginBottom: '12px'
+                }}>
+                  🚨 CAMPO SUBCATEGORIA - TESTE VISUAL
+                </h3>
+                <label style={{
+                  display: 'block',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  color: '#dc2626',
+                  marginBottom: '8px'
+                }}>
+                  Subcategoria <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '3px solid #ef4444',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    outline: 'none',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">SELECIONE A SUBCATEGORIA</option>
+                  <option value="teste1">Teste Subcategoria 1</option>
+                  <option value="teste2">Teste Subcategoria 2</option>
+                  <option value="teste3">Teste Subcategoria 3</option>
+                </select>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#dc2626',
+                  fontWeight: 'bold',
+                  marginTop: '8px'
+                }}>
+                  DEBUG: Este campo deve aparecer logo após Categoria
+                </p>
+              </div>
+
               {/* Prioridade */}
               <div>
                 <label style={{
