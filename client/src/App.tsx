@@ -104,7 +104,11 @@ function AppRouter() {
               <Route path="/" component={Dashboard} />
               <Route path="/dashboard" component={Dashboard} />
               <Route path="/all-tickets" component={AllTickets} />
-              <Route path="/kanban" component={KanbanBoard} />
+              <Route path="/kanban">
+                <ProtectedRoute requiredRole="tickets_view_all">
+                  <KanbanBoard />
+                </ProtectedRoute>
+              </Route>
               <Route path="/create-ticket" component={CreateTicket} />
               
               <Route path="/analytics">
