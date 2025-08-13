@@ -42,12 +42,57 @@ import { PermissionGuard, AdminOnly, SupervisorOnly } from "@/components/Permiss
 import { useEffect, useState } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
 
-// Import the proper auth hook and provider
-import { useAuth, AuthProvider } from "./hooks/useAuth.tsx";
+// Simple auth check
+const useAuth = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [, setLocation] = useLocation();
 
-// Protected Route Component  
+  useEffect(() => {
+    const checkUserStatus = async () => {
+      const token = localStorage.getItem('authToken');
+      const userData = localStorage.getItem('currentUser');
+      
+      if (token && userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Erro ao verificar status do usuário:', error);
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('currentUser');
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkUserStatus();
+  }, [setLocation]);
+
+  const checkPermission = (requiredRole?: string) => {
+    if (!user) return false;
+    if (!requiredRole) return true;
+    
+    const userRole = user.role || user.hierarchy || 'colaborador';
+    const normalizedRole = userRole === 'admin' ? 'administrador' : userRole;
+    
+    if (requiredRole === 'administrador') {
+      return normalizedRole === 'administrador';
+    }
+    if (requiredRole === 'supervisor') {
+      return ['supervisor', 'administrador'].includes(normalizedRole);
+    }
+    return true;
+  };
+
+  return { isAuthenticated, isLoading, user, checkPermission };
+};
+
+// Protected Route Component
 const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) => {
-  const { isAuthenticated, isLoading, hasPermission } = useAuth();
+  const { isAuthenticated, isLoading, checkPermission } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -56,12 +101,12 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
         setLocation('/login');
         return;
       }
-      if (requiredRole && !hasPermission(requiredRole)) {
+      if (requiredRole && !checkPermission(requiredRole)) {
         setLocation('/unauthorized');
         return;
       }
     }
-  }, [isAuthenticated, isLoading, requiredRole, setLocation, hasPermission]);
+  }, [isAuthenticated, isLoading, requiredRole, setLocation, checkPermission]);
 
   if (isLoading) {
     return (
@@ -71,7 +116,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
     );
   }
 
-  if (!isAuthenticated || (requiredRole && !hasPermission(requiredRole))) {
+  if (!isAuthenticated || (requiredRole && !checkPermission(requiredRole))) {
     return null;
   }
 
@@ -191,14 +236,12 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Provider store={store}>
-        <AuthProvider>
-          <ThemeProvider>
-            <TooltipProvider>
-              <AppRouter />
-              <Toaster />
-            </TooltipProvider>
-          </ThemeProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            <AppRouter />
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
       </Provider>
     </QueryClientProvider>
   );

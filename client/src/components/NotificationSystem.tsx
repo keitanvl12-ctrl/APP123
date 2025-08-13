@@ -94,7 +94,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ isOpen, onClose
     }
   }, [assignedTickets, currentUser.id]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.read).length : 0;
 
   const markAsRead = (notificationId: string) => {
     setNotifications(prev => 
@@ -146,7 +146,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ isOpen, onClose
         </CardHeader>
         
         <CardContent>
-          {notifications.length === 0 ? (
+          {!Array.isArray(notifications) || notifications.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Bell className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>Nenhuma notificação no momento</p>
@@ -155,7 +155,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ isOpen, onClose
             <>
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm text-gray-600">
-                  {notifications.length} notificação(ões)
+                  {Array.isArray(notifications) ? notifications.length : 0} notificação(ões)
                 </span>
                 {unreadCount > 0 && (
                   <Button 
@@ -171,7 +171,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ isOpen, onClose
 
               <ScrollArea className="h-96">
                 <div className="space-y-3">
-                  {notifications
+                  {(Array.isArray(notifications) ? notifications : [])
                     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                     .map((notification) => (
                     <div
@@ -236,7 +236,7 @@ export const useNotifications = () => {
     refetchInterval: 30000,
   });
 
-  const unreadCount = notifications.filter((n: any) => !n.read).length;
+  const unreadCount = Array.isArray(notifications) ? notifications.filter((n: any) => !n.read).length : 0;
 
   return {
     notifications,
