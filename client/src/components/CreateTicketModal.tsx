@@ -391,8 +391,8 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 )}
               />
 
-              {/* Subcategoria - Nova funcionalidade! */}
-              {selectedCategoryId && (
+              {/* Subcategoria - TESTE SEMPRE MOSTRAR */}
+              {true && (
                 <FormField
                   control={form.control}
                   name="subcategoryId"
@@ -405,7 +405,7 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                           setSelectedSubcategoryId(value);
                         }} 
                         value={field.value || ""}
-                        disabled={!selectedCategoryId}
+                        disabled={false}
                       >
                         <FormControl>
                           <SelectTrigger className="focus:ring-primary focus:border-primary">
@@ -423,9 +423,9 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                         </SelectContent>
                       </Select>
                       <FormMessage />
-                      {selectedCategoryId && !subcategories?.length && (
+                      {!subcategories?.length && (
                         <p className="text-xs text-gray-500 mt-1">
-                          Nenhuma subcategoria encontrada para esta categoria
+                          Selecione uma categoria primeiro para ver as subcategorias
                         </p>
                       )}
                     </FormItem>
