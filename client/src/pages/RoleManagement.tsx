@@ -150,21 +150,46 @@ export default function RoleManagement() {
     });
   };
 
-  const startEdit = (role: SystemRole) => {
+  const startEdit = async (role: SystemRole) => {
     setEditingRole(role);
     setRoleName(role.name);
     setRoleDescription(role.description || '');
     
-    // SEMPRE começa com TODAS as permissões desmarcadas - o usuário deve marcar as que deseja
-    setSelectedPermissions([]);
-    console.log('🎯 Editando função:', role.name, '- Todas permissões desmarcadas, usuário deve selecionar as desejadas');
+    try {
+      // Buscar permissões atuais da função no banco de dados
+      const response = await fetch(`/api/permissions/roles/${role.id}`);
+      if (response.ok) {
+        const currentPermissions = await response.json();
+        
+        // Definir permissões selecionadas baseadas nas permissões atuais da função
+        const permissionCodes = currentPermissions.map((p: any) => p.permissionCode || p.code);
+        setSelectedPermissions(permissionCodes);
+        console.log('🎯 Carregadas permissões da função:', role.name, '- Permissões:', permissionCodes);
+      } else {
+        console.warn('Erro ao buscar permissões, iniciando vazio');
+        setSelectedPermissions([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar permissões da função:', error);
+      // Em caso de erro, começar vazio para que o usuário selecione
+      setSelectedPermissions([]);
+    }
   };
 
   const handlePermissionChange = (permissionCode: string, checked: boolean) => {
+    console.log('🔄 Mudança de permissão:', permissionCode, 'checked:', checked);
     if (checked) {
-      setSelectedPermissions(prev => [...prev, permissionCode]);
+      setSelectedPermissions(prev => {
+        const newPermissions = [...prev, permissionCode];
+        console.log('➕ Adicionando permissão. Nova lista:', newPermissions);
+        return newPermissions;
+      });
     } else {
-      setSelectedPermissions(prev => prev.filter(code => code !== permissionCode));
+      setSelectedPermissions(prev => {
+        const newPermissions = prev.filter(code => code !== permissionCode);
+        console.log('➖ Removendo permissão. Nova lista:', newPermissions);
+        return newPermissions;
+      });
     }
   };
 

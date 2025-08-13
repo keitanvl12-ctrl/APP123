@@ -512,6 +512,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Buscar permissões de uma função específica
+  app.get('/api/permissions/roles/:roleId', async (req, res) => {
+    try {
+      const { roleId } = req.params;
+      const permissions = await storage.getRolePermissions(roleId);
+      res.json(permissions);
+    } catch (error) {
+      console.error('Error getting role permissions:', error);
+      res.status(500).json({ message: 'Failed to get role permissions' });
+    }
+  });
+
   // Change user password endpoint - requires users_edit permission
   app.put("/api/users/:id/change-password", requirePermission('perm_users_edit'), async (req, res) => {
     try {

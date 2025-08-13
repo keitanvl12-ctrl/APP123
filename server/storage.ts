@@ -520,6 +520,33 @@ export class DatabaseStorage implements IStorage {
       return false;
     }
   }
+
+  async getRolePermissions(roleId: string): Promise<any[]> {
+    try {
+      console.log(`Buscando permissões para função: ${roleId}`);
+      
+      // Buscar permissões atribuídas à função específica pelo ID
+      const permissionsResult = await db
+        .select({
+          permissionId: rolePermissions.permissionId,
+          permissionCode: systemPermissions.code,
+          code: systemPermissions.code,
+          name: systemPermissions.name,
+          description: systemPermissions.description,
+          category: systemPermissions.category
+        })
+        .from(rolePermissions)
+        .innerJoin(systemPermissions, eq(rolePermissions.permissionId, systemPermissions.id))
+        .where(eq(rolePermissions.roleId, roleId));
+
+      console.log(`Permissões encontradas para função ${roleId}:`, permissionsResult.length);
+      return permissionsResult;
+      
+    } catch (error) {
+      console.error('Erro ao buscar permissões da função:', error);
+      return [];
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
