@@ -1502,6 +1502,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint para buscar valores de campos customizados de um ticket específico
+  app.get("/api/tickets/:ticketId/custom-field-values", async (req, res) => {
+    try {
+      console.log("📋 Buscando valores de campos customizados para ticket:", req.params.ticketId);
+      const values = await storage.getTicketCustomFieldValues(req.params.ticketId);
+      console.log("✅ Valores encontrados:", values.length);
+      res.json(values);
+    } catch (error) {
+      console.error("❌ Erro ao buscar valores de campos customizados:", error);
+      res.status(500).json({ message: "Failed to fetch custom field values for ticket" });
+    }
+  });
+
   // Register Service Order routes
   registerServiceOrderRoutes(app);
 

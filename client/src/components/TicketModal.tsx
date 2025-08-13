@@ -137,11 +137,40 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
     if (isOpen && ticket?.id) {
       setLoading(true);
       console.log("🔍 Buscando campos customizados para:", ticket.ticketNumber);
+      console.log("📋 Subcategoria do ticket:", ticket.subcategoryId);
       
-      // DESABILITAR busca por categoria - agora baseados em subcategorias
-      console.log("✅ Campos customizados desabilitados - agora baseados em subcategorias");
-      setCustomFields([]);
-      setLoading(false);
+      // Buscar campos customizados baseados na subcategoria do ticket
+      if (ticket.subcategoryId) {
+        fetch(`/api/custom-fields/subcategory/${ticket.subcategoryId}`, {
+          credentials: 'include'
+        })
+          .then(res => res.json())
+          .then(fields => {
+            console.log("✅ Campos customizados da subcategoria encontrados:", fields);
+            
+            // Buscar valores dos campos customizados para este ticket específico
+            if (fields.length > 0) {
+              return fetch(`/api/tickets/${ticket.id}/custom-field-values`, {
+                credentials: 'include'
+              }).then(res => res.json());
+            }
+            return [];
+          })
+          .then(values => {
+            console.log("✅ Valores dos campos encontrados:", values);
+            setCustomFields(values || []);
+            setLoading(false);
+          })
+          .catch(err => {
+            console.error("❌ Erro ao buscar campos customizados:", err);
+            setCustomFields([]);
+            setLoading(false);
+          });
+      } else {
+        console.log("ℹ️ Ticket sem subcategoria definida");
+        setCustomFields([]);
+        setLoading(false);
+      }
 
       // Buscar usuários atribuíveis (não solicitantes)
       fetch('/api/users/assignable', {
@@ -380,12 +409,12 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Status</label>
-                    <p className="text-sm text-gray-900">{getStatusLabel(ticket.status)}</p>
+                    <label className="text-sm font-medium text-gray-600">Categoria</label>
+                    <p className="text-sm text-gray-900">{ticket.category?.name || 'Não informada'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Prioridade</label>
-                    <p className="text-sm text-gray-900">{getPriorityLabel(ticket.priority)}</p>
+                    <label className="text-sm font-medium text-gray-600">Subcategoria</label>
+                    <p className="text-sm text-gray-900">{ticket.subcategory?.name || 'Não informada'}</p>
                   </div>
                 </div>
 
@@ -407,7 +436,7 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
               <CardHeader className="bg-blue-100/50">
                 <CardTitle className="text-lg font-semibold flex items-center text-blue-800">
                   <Tag className="w-5 h-5 mr-2" />
-                  Informações Específicas da Categoria
+                  Informações Específicas da Subcategoria
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 mt-4">
@@ -433,7 +462,7 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                 ) : (
                   <div className="text-center py-6">
                     <AlertCircle className="w-12 h-12 text-blue-400 mx-auto mb-2" />
-                    <p className="text-sm text-blue-600 font-medium">Nenhum campo específico da categoria encontrado</p>
+                    <p className="text-sm text-blue-600 font-medium">Nenhum campo específico da subcategoria encontrado</p>
                     <p className="text-xs text-blue-500 mt-1">Este ticket não possui campos customizados configurados</p>
                   </div>
                 )}

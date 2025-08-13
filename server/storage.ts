@@ -839,6 +839,35 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getTicketCustomFieldValues(ticketId: string): Promise<any[]> {
+    try {
+      console.log("📋 Buscando valores de campos customizados para ticket:", ticketId);
+      
+      const result = await db
+        .select({
+          id: customFieldValues.id,
+          value: customFieldValues.value,
+          customField: {
+            id: customFields.id,
+            name: customFields.name,
+            type: customFields.type,
+            required: customFields.required,
+            order: customFields.order
+          }
+        })
+        .from(customFieldValues)
+        .innerJoin(customFields, eq(customFieldValues.customFieldId, customFields.id))
+        .where(eq(customFieldValues.ticketId, ticketId))
+        .orderBy(asc(customFields.order));
+
+      console.log("✅ Valores encontrados:", result.length);
+      return result;
+    } catch (error) {
+      console.error("❌ Erro ao buscar valores de campos customizados:", error);
+      return [];
+    }
+  }
+
   async getCustomFieldsBySubcategory(subcategoryId: string): Promise<any[]> {
     try {
       console.log("🔍 Buscando campos customizados para subcategoria:", subcategoryId);
