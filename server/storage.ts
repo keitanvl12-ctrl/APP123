@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { eq, and, desc, or, sql, count, asc, like, inArray } from "drizzle-orm";
 import { 
-  users, tickets, comments, departments, attachments,
+  users, tickets, comments, department, attachments,
   systemRoles, systemPermissions, rolePermissions,
   categories, subcategories, customFields, customFieldValues,
   statusConfig, priorityConfig, slaConfig, slaRules,
