@@ -17,6 +17,7 @@ export function requirePermission(requiredPermission: string): RequestHandler {
 
       const userId = req.user.userId;
       console.log(`🔐 Checking permission '${requiredPermission}' for user ${userId}`);
+      console.log(`🔐 Full user object:`, req.user);
       
       // Obter permissões do usuário do banco
       const userPermissions = await storage.getUserPermissions(userId);
