@@ -10,7 +10,7 @@ import {
 } from "./middleware/permissionMiddleware";
 import permissionRoutes from "./routes/permissions";
 import { departmentStorage } from "./departmentStorage";
-import { insertDepartmentSchema, insertCategorySchema, insertCustomFieldSchema } from "@shared/schema";
+import { insertDepartmentSchema, insertCategorySchema, insertCustomFieldSchema, insertSubcategorySchema } from "@shared/schema";
 import { insertTicketSchema, insertCommentSchema, updateTicketSchema } from "@shared/schema";
 import { z } from "zod";
 import { getWebSocketServer } from "./websocket";
@@ -1087,11 +1087,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/subcategories", async (req, res) => {
     try {
-      const subcategory = await storage.createSubcategory(req.body);
+      console.log("📝 Criação de subcategoria solicitada:", req.body);
+      
+      // Validar dados de entrada
+      const validatedData = insertSubcategorySchema.parse(req.body);
+      console.log("✅ Dados validados:", validatedData);
+      
+      const subcategory = await storage.createSubcategory(validatedData);
       res.status(201).json(subcategory);
     } catch (error) {
-      console.error("Error creating subcategory:", error);
-      res.status(500).json({ message: "Failed to create subcategory" });
+      console.error("❌ Error creating subcategory:", error);
+      
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          message: "Dados inválidos", 
+          errors: error.errors 
+        });
+      } else {
+        res.status(500).json({ 
+          message: "Failed to create subcategory",
+          error: error.message 
+        });
+      }
     }
   });
 

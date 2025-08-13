@@ -65,10 +65,7 @@ const Subcategories: React.FC = () => {
   // Criar subcategoria
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return await apiRequest('/api/subcategories', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
+      return await apiRequest('/api/subcategories', 'POST', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/subcategories'] });
@@ -91,10 +88,7 @@ const Subcategories: React.FC = () => {
   // Atualizar subcategoria
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      return await apiRequest(`/api/subcategories/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data)
-      });
+      return await apiRequest(`/api/subcategories/${id}`, 'PUT', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/subcategories'] });
@@ -117,8 +111,7 @@ const Subcategories: React.FC = () => {
   // Deletar subcategoria
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest(`/api/subcategories/${id}`, "DELETE");
-      return response.json();
+      return await apiRequest(`/api/subcategories/${id}`, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/subcategories'] });
