@@ -69,63 +69,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
 
-    // Check if user has permissions array from database
+    // USAR APENAS as permissões reais do banco de dados vindas do login
     if (user.permissions && Array.isArray(user.permissions)) {
-      // Direct permission check
+      // Direct permission check - usar exatamente como está no banco
       if (user.permissions.includes(permission)) return true;
       
-      // Wildcard check (e.g., "tickets.*" matches "tickets.create")
+      // Wildcard check para permissões como "tickets.*"
       return user.permissions.some(p => 
         p.endsWith('*') && permission.startsWith(p.replace('*', ''))
       );
     }
 
-    // Fallback to role-based permissions for system stability
-    const rolePermissions = {
-      atendente: [
-        'tickets.view_own',
-        'tickets.create',
-        'tickets.edit_own',
-        'tickets.comment',
-        'profile.view'
-      ],
-      supervisor: [
-        'tickets.view_own',
-        'tickets.create', 
-        'tickets.edit_own',
-        'tickets.view_department',
-        'tickets.edit_department',
-        'tickets.assign',
-        'tickets.comment',
-        'users.view_department',
-        'reports.view_department',
-        'categories.view',
-        'profile.view'
-      ],
-      administrador: [
-        'tickets.*',
-        'users.*',
-        'departments.*',
-        'categories.*',
-        'fields.*',
-        'reports.*',
-        'permissions.*',
-        'roles.*',
-        'config.*',
-        'profile.*'
-      ]
-    };
-
-    const userRole = user.role || user.hierarchy || 'atendente';
-    // Map 'admin' to 'administrador' for compatibility
-    const normalizedRole = userRole === 'admin' ? 'administrador' : userRole;
-    const userPermissions = rolePermissions[normalizedRole as keyof typeof rolePermissions] || [];
-    
-    // Check exact match or wildcard
-    return userPermissions.some(p => 
-      p === permission || 
-      (p.endsWith('.*') && permission.startsWith(p.replace('.*', '')))
-    );
+    // Se não tem permissões do banco, negar acesso
+    return false;
   };
 
   const isAdmin = (): boolean => {

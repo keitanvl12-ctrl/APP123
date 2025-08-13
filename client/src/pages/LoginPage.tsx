@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, LogIn, Mail, Lock, Building2, Shield } from 'lucide-react';
 import { FaMicrosoft } from 'react-icons/fa';
+import { useAuth } from '@/hooks/useAuth';
 import OpusLogo from '@assets/Logo Grupo OPUS - azul escuro.azul claro1_1754938736660.png';
 
 const LoginPage: React.FC = () => {
@@ -16,6 +17,7 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { login } = useAuth();
 
   // Check if already logged in
   useEffect(() => {
@@ -45,9 +47,14 @@ const LoginPage: React.FC = () => {
       if (response.ok) {
         console.log('Login bem-sucedido, dados recebidos:', data);
         
-        // Store authentication data
-        localStorage.setItem('authToken', data.token);
-        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        // Use o método login do hook de autenticação para conectar permissões
+        if (login) {
+          login(data.token, data.user);
+        } else {
+          // Fallback se hook não estiver disponível
+          localStorage.setItem('authToken', data.token);
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+        }
 
         toast({
           title: "Login realizado com sucesso",
