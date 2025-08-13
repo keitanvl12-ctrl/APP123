@@ -135,43 +135,51 @@ export class DatabaseStorage implements IStorage {
 
   // Ticket Management
   async getAllTickets(): Promise<any[]> {
-    const ticketList = await db
-      .select({
-        id: tickets.id,
-        ticketNumber: tickets.ticketNumber,
-        subject: tickets.subject,
-        description: tickets.description,
-        status: tickets.status,
-        priority: tickets.priority,
-        categoryId: tickets.categoryId,
-        subcategoryId: tickets.subcategoryId,
-        pausedAt: tickets.pausedAt,
-        pauseReason: tickets.pauseReason,
-        createdBy: tickets.createdBy,
-        assignedTo: tickets.assignedTo,
-        createdAt: tickets.createdAt,
-        updatedAt: tickets.updatedAt,
-        resolvedAt: tickets.resolvedAt,
-        requesterName: tickets.requesterName,
-        requesterEmail: tickets.requesterEmail,
-        requesterPhone: tickets.requesterPhone,
-        formData: tickets.formData,
-        createdByUser: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          role: users.role,
-        },
-        categoryName: categories.name,
-        subcategoryName: subcategories.name,
-      })
-      .from(tickets)
-      .leftJoin(users, eq(tickets.createdBy, users.id))
-      .leftJoin(categories, eq(tickets.categoryId, categories.id))
-      .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
-      .orderBy(desc(tickets.createdAt));
+    try {
+      console.log("📋 Fetching all tickets...");
+      
+      const ticketList = await db
+        .select({
+          id: tickets.id,
+          ticketNumber: tickets.ticketNumber,
+          subject: tickets.subject,
+          description: tickets.description,
+          status: tickets.status,
+          priority: tickets.priority,
+          categoryId: tickets.categoryId,
+          subcategoryId: tickets.subcategoryId,
+          pausedAt: tickets.pausedAt,
+          pauseReason: tickets.pauseReason,
+          createdBy: tickets.createdBy,
+          assignedTo: tickets.assignedTo,
+          createdAt: tickets.createdAt,
+          updatedAt: tickets.updatedAt,
+          resolvedAt: tickets.resolvedAt,
+          requesterName: tickets.requesterName,
+          requesterEmail: tickets.requesterEmail,
+          requesterPhone: tickets.requesterPhone,
+          formData: tickets.formData,
+          createdByUser: {
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            role: users.role,
+          },
+          categoryName: categories.name,
+          subcategoryName: subcategories.name,
+        })
+        .from(tickets)
+        .leftJoin(users, eq(tickets.createdBy, users.id))
+        .leftJoin(categories, eq(tickets.categoryId, categories.id))
+        .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
+        .orderBy(desc(tickets.createdAt));
 
-    return ticketList;
+      console.log("✅ Found tickets:", ticketList.length);
+      return ticketList;
+    } catch (error) {
+      console.error("❌ Error fetching tickets:", error);
+      return [];
+    }
   }
 
   async getAllTicketsWithSLA(): Promise<any[]> {
