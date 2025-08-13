@@ -397,47 +397,17 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 <br />Campo de Subcategoria deve estar logo abaixo...
               </div>
 
-              {/* Subcategoria - TESTE SEMPRE MOSTRAR */}
-              {true && (
-                <FormField
-                  control={form.control}
-                  name="subcategoryId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subcategoria *</FormLabel>
-                      <Select 
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedSubcategoryId(value);
-                        }} 
-                        value={field.value || ""}
-                        disabled={false}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="focus:ring-primary focus:border-primary">
-                            <SelectValue 
-                              placeholder="Selecione a subcategoria" 
-                            />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {subcategories?.map((subcategory) => (
-                            <SelectItem key={subcategory.id} value={subcategory.id}>
-                              {subcategory.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                      {!subcategories?.length && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Selecione uma categoria primeiro para ver as subcategorias
-                        </p>
-                      )}
-                    </FormItem>
-                  )}
-                />
-              )}
+              {/* TESTE SIMPLES - Campo básico sem FormField */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🔧 TESTE SUBCATEGORIA (Campo Básico)
+                </label>
+                <select className="w-full p-2 border border-gray-300 rounded-md">
+                  <option value="">Selecione uma subcategoria...</option>
+                  <option value="test1">Teste 1</option>
+                  <option value="test2">Teste 2</option>
+                </select>
+              </div>
 
               {/* DEBUG - Nova arquitetura com subcategorias - MOVIDO PARA ANTES DOS CAMPOS CUSTOMIZADOS */}
               <div className="mt-4 p-4 border-2 border-blue-500" style={{ backgroundColor: 'blue', color: 'white', fontSize: '14px', fontWeight: 'bold' }}>
