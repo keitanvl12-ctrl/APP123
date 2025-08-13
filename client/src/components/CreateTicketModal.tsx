@@ -66,8 +66,11 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
     queryKey: ["/api/subcategories", selectedCategoryId],
     queryFn: async () => {
       if (!selectedCategoryId) return [];
+      console.log("🔍 Buscando subcategorias para categoria:", selectedCategoryId);
       const response = await apiRequest(`/api/subcategories?categoryId=${selectedCategoryId}`, "GET");
-      return response.json();
+      const data = await response.json();
+      console.log("📦 Subcategorias encontradas:", data?.length || 0, data);
+      return data;
     },
     enabled: isOpen && !!selectedCategoryId,
   });
@@ -359,7 +362,6 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                       onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedCategoryId(value);
-                        console.log("🔄 Categoria selecionada:", value);
                         // Reset subcategoria quando categoria muda
                         form.setValue("subcategoryId", "");
                         setSelectedSubcategoryId("");
@@ -391,34 +393,46 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 )}
               />
 
-              {/* TESTE VISUAL CRÍTICO - SEMPRE VISÍVEL */}
-              <div className="mt-4 p-6 bg-red-500 text-white text-center text-lg font-bold border-4 border-yellow-500">
-                🚨 TESTE VISUAL: SE VOCÊ VÊ ISTO, O PROBLEMA NÃO É DE RENDERIZAÇÃO! 🚨
-                <br />Campo de Subcategoria deve estar logo abaixo...
-              </div>
+              {/* Subcategoria - Aparecer quando categoria for selecionada */}
+              {selectedCategoryId && (
+                <FormField
+                  control={form.control}
+                  name="subcategoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subcategoria *</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedSubcategoryId(value);
+                        }} 
+                        value={field.value || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="focus:ring-primary focus:border-primary">
+                            <SelectValue placeholder="Selecione a subcategoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {subcategories?.map((subcategory) => (
+                            <SelectItem key={subcategory.id} value={subcategory.id}>
+                              {subcategory.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      {selectedCategoryId && (!subcategories || subcategories.length === 0) && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Nenhuma subcategoria encontrada para esta categoria
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              {/* TESTE SIMPLES - Campo básico sem FormField */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🔧 TESTE SUBCATEGORIA (Campo Básico)
-                </label>
-                <select className="w-full p-2 border border-gray-300 rounded-md">
-                  <option value="">Selecione uma subcategoria...</option>
-                  <option value="test1">Teste 1</option>
-                  <option value="test2">Teste 2</option>
-                </select>
-              </div>
 
-              {/* DEBUG - Nova arquitetura com subcategorias - MOVIDO PARA ANTES DOS CAMPOS CUSTOMIZADOS */}
-              <div className="mt-4 p-4 border-2 border-blue-500" style={{ backgroundColor: 'blue', color: 'white', fontSize: '14px', fontWeight: 'bold' }}>
-                <h4 style={{ color: 'white' }}>🚀 DEBUG - SUBCATEGORIAS 🚀</h4>
-                <p style={{ color: 'white' }}>Department: {selectedDepartment || "NONE"}</p>
-                <p style={{ color: 'white' }}>Category ID: {selectedCategoryId || "NONE"}</p>
-                <p style={{ color: 'white' }}>Subcategory ID: {selectedSubcategoryId || "NONE"}</p>
-                <p style={{ color: 'white' }}>Subcategories Count: {subcategories?.length || 0}</p>
-                <p style={{ color: 'white' }}>Custom Fields Count: {customFields?.length || 0}</p>
-                <p style={{ color: 'yellow' }}>Estrutura: Departamento → Categoria → Subcategoria → Campos</p>
-              </div>
 
               {/* Campos Customizados - Nova arquitetura baseada em SUBCATEGORIAS */}
               {selectedSubcategoryId && customFields && customFields.length > 0 && (
