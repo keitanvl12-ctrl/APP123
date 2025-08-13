@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, desc, or, sql, count, asc } from "drizzle-orm";
+import { eq, and, desc, or, sql, count, asc, like } from "drizzle-orm";
 import { 
   users, tickets, comments, departments, attachments,
   systemRoles, systemPermissions, rolePermissions,
@@ -336,11 +336,51 @@ export class DatabaseStorage implements IStorage {
   async createTicket(ticket: InsertTicket): Promise<Ticket> {
     // Generate ticket number if not provided
     if (!ticket.ticketNumber) {
-      const ticketCount = await db.select({ count: count() }).from(tickets);
-      const nextNumber = (ticketCount[0]?.count || 0) + 1;
-      ticket.ticketNumber = `TICK-${nextNumber.toString().padStart(3, '0')}`;
+      // Find the highest ticket number by extracting all ticket numbers and finding max
+      const allTickets = await db
+        .select({ ticketNumber: tickets.ticketNumber })
+        .from(tickets)
+        .where(like(tickets.ticketNumber, 'TICK-%'));
+      
+      let nextNumber = 1;
+      if (allTickets.length > 0) {
+        const numbers = allTickets
+          .map(t => parseInt(t.ticketNumber.replace('TICK-', '')))
+          .filter(n => !isNaN(n));
+        
+        if (numbers.length > 0) {
+          nextNumber = Math.max(...numbers) + 1;
+        }
+      }
+      
+      // Try to create with incrementing numbers until we find a free one
+      let attempts = 0;
+      const maxAttempts = 100; // Safety net
+      
+      while (attempts < maxAttempts) {
+        const candidateNumber = `TICK-${(nextNumber + attempts).toString().padStart(3, '0')}`;
+        
+        // Check if this number already exists
+        const existingTicket = await db
+          .select({ id: tickets.id })
+          .from(tickets)
+          .where(eq(tickets.ticketNumber, candidateNumber))
+          .limit(1);
+        
+        if (existingTicket.length === 0) {
+          ticket.ticketNumber = candidateNumber;
+          break;
+        }
+        
+        attempts++;
+      }
+      
+      if (attempts >= maxAttempts) {
+        throw new Error('Unable to generate unique ticket number');
+      }
     }
     
+    console.log('🎫 Creating ticket with number:', ticket.ticketNumber);
     const [newTicket] = await db.insert(tickets).values(ticket).returning();
     return newTicket;
   }

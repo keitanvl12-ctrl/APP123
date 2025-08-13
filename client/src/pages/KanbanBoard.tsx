@@ -712,6 +712,8 @@ export default function KanbanBoard() {
     if (!pauseModal.ticket) return;
 
     try {
+      console.log('🔄 Pausando ticket:', pauseModal.ticket.id, 'com dados:', pauseData);
+      
       // Fazer chamada à API para pausar o ticket com motivo
       const response = await fetch(`/api/tickets/${pauseModal.ticket.id}`, {
         method: 'PATCH',
@@ -725,7 +727,13 @@ export default function KanbanBoard() {
         }),
       });
 
+      const result = await response.json();
+      console.log('📝 Resposta da API ao pausar:', result);
+
       if (response.ok) {
+        console.log('✅ Ticket pausado com sucesso');
+        // Invalidar queries para forçar refetch
+        queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
         // Refetch dos tickets para atualizar com dados reais do banco
         refetchTickets();
         
@@ -735,22 +743,25 @@ export default function KanbanBoard() {
           description: `Ticket pausado: ${pauseData.reason}`,
         });
       } else {
-        console.error('Erro ao pausar ticket no servidor');
+        console.error('❌ Erro ao pausar ticket no servidor:', result);
         toast({
-          title: "Erro",
-          description: "Não foi possível pausar o ticket.",
+          title: "❌ Erro ao pausar",
+          description: "Não foi possível pausar o ticket. Tente novamente.",
           variant: "destructive",
         });
+        throw new Error(`Erro ${response.status}: ${result.message || 'Falha na operação'}`);
       }
-
+      
       setPauseModal({ isOpen: false, ticket: null });
     } catch (error) {
-      console.error('Erro ao pausar ticket:', error);
+      console.error('❌ Erro ao pausar ticket:', error);
       toast({
-        title: "Erro",
-        description: "Erro inesperado ao pausar o ticket.",
+        title: "❌ Erro ao pausar",
+        description: "Não foi possível pausar o ticket. Tente novamente.",
         variant: "destructive",
       });
+      setPauseModal({ isOpen: false, ticket: null });
+      throw error; // Re-throw para que o modal de pausa possa tratar
     }
   };
 
