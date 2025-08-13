@@ -359,12 +359,12 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                       onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedCategoryId(value);
+                        console.log("🔄 Categoria selecionada:", value);
                         // Reset subcategoria quando categoria muda
                         form.setValue("subcategoryId", "");
                         setSelectedSubcategoryId("");
                       }} 
                       value={field.value || ""}
-                      disabled={false}
                     >
                       <FormControl>
                         <SelectTrigger className="focus:ring-primary focus:border-primary">
