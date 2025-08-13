@@ -410,11 +410,11 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Categoria</label>
-                    <p className="text-sm text-gray-900">{ticket.category?.name || 'Não informada'}</p>
+                    <p className="text-sm text-gray-900">{ticket.categoryName || 'Não informada'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Subcategoria</label>
-                    <p className="text-sm text-gray-900">{ticket.subcategory?.name || 'Não informada'}</p>
+                    <p className="text-sm text-gray-900">{ticket.subcategoryName || 'Não informada'}</p>
                   </div>
                 </div>
 

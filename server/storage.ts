@@ -376,6 +376,8 @@ export class DatabaseStorage implements IStorage {
         priority: tickets.priority,
         categoryId: tickets.categoryId,
         subcategoryId: tickets.subcategoryId,
+        pausedAt: tickets.pausedAt,
+        pauseReason: tickets.pauseReason,
         createdBy: tickets.createdBy,
         assignedTo: tickets.assignedTo,
         createdAt: tickets.createdAt,
@@ -391,9 +393,13 @@ export class DatabaseStorage implements IStorage {
           email: users.email,
           role: users.role,
         },
+        categoryName: categories.name,
+        subcategoryName: subcategories.name,
       })
       .from(tickets)
       .leftJoin(users, eq(tickets.createdBy, users.id))
+      .leftJoin(categories, eq(tickets.categoryId, categories.id))
+      .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
       .where(eq(tickets.id, id));
 
     if (!ticket) return undefined;
