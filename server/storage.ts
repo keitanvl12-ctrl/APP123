@@ -179,21 +179,28 @@ export class DatabaseStorage implements IStorage {
         let slaSourceName = 'padrão';
         
         // Try to find SLA rule by category first (highest priority)
-        if (ticket.category && slaRulesList?.length > 0 && categoriesList?.length > 0) {
-          // Find category name by ID
-          const categoryObj = categoriesList.find(cat => cat.id === ticket.category);
+        if (ticket.category && slaRulesList?.length > 0) {
+          // Find category name by ID - load fresh categories if needed
+          if (!categoriesList || categoriesList.length === 0) {
+            console.log('🔄 Reloading categories...');
+            const freshCategories = await this.getAllCategories();
+            console.log(`📊 Fresh categories loaded: ${freshCategories?.length || 0}`);
+          }
+          
+          const categoryObj = categoriesList?.find(cat => cat.id === ticket.category);
           const categoryName = categoryObj?.name;
+          
+          console.log(`🔍 Looking for category ID: ${ticket.category}`);
+          console.log(`📝 Found category name: ${categoryName || 'NOT FOUND'}`);
           
           if (categoryName) {
             applicableSLA = slaRulesList.find(rule => 
               rule.category === categoryName && rule.isActive
             );
-            console.log(`🔍 SLA rule search by category "${categoryName}" (ID: ${ticket.category}):`, applicableSLA ? 'FOUND' : 'NOT FOUND');
+            console.log(`🔍 SLA rule search by category "${categoryName}":`, applicableSLA ? 'FOUND' : 'NOT FOUND');
             if (applicableSLA) {
-              console.log(`✅ Found SLA rule for category: ${JSON.stringify(applicableSLA)}`);
+              console.log(`✅ Found SLA rule: ${JSON.stringify(applicableSLA)}`);
             }
-          } else {
-            console.log(`⚠️ Category not found for ID: ${ticket.category}`);
           }
         }
         

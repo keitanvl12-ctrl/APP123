@@ -1147,7 +1147,7 @@ export default function KanbanBoard() {
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-gray-600">Meta SLA</span>
                                 <Badge variant="outline" className="text-xs">
-                                  {ticket.slaHoursTotal || 4}h ({(ticket.slaSource || 'padrão').includes('regra SLA') ? 'configurado' : 'padrão'})
+                                  {ticket.slaHoursTotal || 4}h ({ticket.slaSource === 'padrão' ? 'padrão' : 'configurado'})
                                 </Badge>
                               </div>
                               <span className={`text-xs font-medium ${
