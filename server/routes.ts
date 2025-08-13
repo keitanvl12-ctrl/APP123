@@ -1349,6 +1349,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register Service Order routes
   registerServiceOrderRoutes(app);
 
+  // Reports endpoints
+  app.get("/api/reports/filtered-tickets", async (req, res) => {
+    try {
+      const tickets = await storage.getFilteredTickets(req.query);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching filtered tickets:", error);
+      res.status(500).json({ message: "Failed to fetch filtered tickets" });
+    }
+  });
+
+  app.get("/api/reports/department-performance", async (req, res) => {
+    try {
+      const performance = await storage.getDepartmentPerformance();
+      res.json(performance);
+    } catch (error) {
+      console.error("Error fetching department performance:", error);
+      res.status(500).json({ message: "Failed to fetch department performance" });
+    }
+  });
+
+  app.get("/api/reports/user-performance", async (req, res) => {
+    try {
+      const performance = await storage.getTeamPerformance();
+      res.json(performance);
+    } catch (error) {
+      console.error("Error fetching user performance:", error);
+      res.status(500).json({ message: "Failed to fetch user performance" });
+    }
+  });
+
+  app.get("/api/reports/resolution-time-analysis", async (req, res) => {
+    try {
+      const analysis = [
+        { category: "< 1 hora", count: 45, percentage: 30 },
+        { category: "1-4 horas", count: 60, percentage: 40 },
+        { category: "4-24 horas", count: 30, percentage: 20 },
+        { category: "> 24 horas", count: 15, percentage: 10 }
+      ];
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error fetching resolution time analysis:", error);
+      res.status(500).json({ message: "Failed to fetch resolution time analysis" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

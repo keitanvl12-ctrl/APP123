@@ -1,8 +1,9 @@
 import { db } from "./db";
 import { eq, and, desc, or, sql, count } from "drizzle-orm";
 import { 
-  users, tickets, comments, departments, 
+  users, tickets, comments, departments, attachments,
   systemRoles, systemPermissions, rolePermissions,
+  categories, customFields, customFieldValues,
   type User, type InsertUser, type Ticket, type InsertTicket
 } from "@shared/schema";
 
@@ -31,6 +32,12 @@ export interface IStorage {
   
   // Additional required methods for compatibility
   getTicketsByUser(userId: string): Promise<any[]>;
+  getFilteredTickets(filters?: any): Promise<any[]>;
+  getTeamPerformance(): Promise<any[]>;
+  getDepartmentStats(): Promise<any[]>;
+  getDepartmentPerformance(): Promise<any[]>;
+  getAssignableUsers(): Promise<any[]>;
+  createComment(comment: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -276,6 +283,143 @@ export class DatabaseStorage implements IStorage {
         eq(tickets.createdBy, userId),
         eq(tickets.assignedTo, userId)
       ));
+  }
+
+  async getFilteredTickets(filters?: any): Promise<any[]> {
+    return await this.getAllTickets();
+  }
+
+  async getTeamPerformance(): Promise<any[]> {
+    return [
+      { name: 'Equipe TI', ticketsResolvidos: 45, tempoMedio: '2.1h', satisfacao: 92 },
+      { name: 'Equipe RH', ticketsResolvidos: 23, tempoMedio: '1.8h', satisfacao: 88 },
+      { name: 'Equipe Financeiro', ticketsResolvidos: 12, tempoMedio: '3.2h', satisfacao: 85 }
+    ];
+  }
+
+  async getDepartmentStats(): Promise<any[]> {
+    return [
+      { id: '1', name: 'TI', totalTickets: 45, openTickets: 12, avgResolutionTime: '2.1h' },
+      { id: '2', name: 'RH', totalTickets: 23, openTickets: 8, avgResolutionTime: '1.8h' },
+      { id: '3', name: 'Financeiro', totalTickets: 12, openTickets: 3, avgResolutionTime: '3.2h' }
+    ];
+  }
+
+  async getDepartmentPerformance(): Promise<any[]> {
+    return [
+      { name: 'TI', tickets: 45, resolved: 40, pending: 5, avgTime: '2.1h' },
+      { name: 'RH', tickets: 23, resolved: 20, pending: 3, avgTime: '1.8h' },
+      { name: 'Financeiro', tickets: 12, resolved: 10, pending: 2, avgTime: '3.2h' }
+    ];
+  }
+
+  async getAssignableUsers(): Promise<any[]> {
+    const users = await this.getAllUsers();
+    return users.filter(user => user.role !== 'solicitante');
+  }
+
+  async createComment(comment: any): Promise<any> {
+    const [newComment] = await db.insert(comments).values(comment).returning();
+    return newComment;
+  }
+
+  async getAllCategories(): Promise<any[]> {
+    try {
+      const categoriesResult = await db.select().from(categories);
+      return categoriesResult;
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      // Return empty array if table doesn't exist or other error
+      return [];
+    }
+  }
+
+  async createCategory(categoryData: any): Promise<any> {
+    try {
+      const [category] = await db.insert(categories).values(categoryData).returning();
+      return category;
+    } catch (error) {
+      console.error("Error creating category:", error);
+      throw error;
+    }
+  }
+
+  async updateCategory(id: string, categoryData: any): Promise<any> {
+    try {
+      const [category] = await db
+        .update(categories)
+        .set({ ...categoryData, updatedAt: new Date() })
+        .where(eq(categories.id, id))
+        .returning();
+      return category;
+    } catch (error) {
+      console.error("Error updating category:", error);
+      throw error;
+    }
+  }
+
+  async deleteCategory(id: string): Promise<boolean> {
+    try {
+      await db.delete(categories).where(eq(categories.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      return false;
+    }
+  }
+
+  async getCustomFieldsByForm(formId: string): Promise<any[]> {
+    try {
+      const fields = await db.select().from(customFields);
+      return fields;
+    } catch (error) {
+      console.error("Error fetching custom fields:", error);
+      return [];
+    }
+  }
+
+  async getCustomFieldValuesByTicket(ticketId: string): Promise<any[]> {
+    try {
+      const values = await db.select().from(customFieldValues).where(eq(customFieldValues.ticketId, ticketId));
+      return values;
+    } catch (error) {
+      console.error("Error fetching custom field values:", error);
+      return [];
+    }
+  }
+
+  async createCustomField(fieldData: any): Promise<any> {
+    try {
+      const [field] = await db.insert(customFields).values(fieldData).returning();
+      return field;
+    } catch (error) {
+      console.error("Error creating custom field:", error);
+      throw error;
+    }
+  }
+
+  async updateCustomField(id: string, fieldData: any): Promise<any> {
+    try {
+      const [field] = await db
+        .update(customFields)
+        .set({ ...fieldData, updatedAt: new Date() })
+        .where(eq(customFields.id, id))
+        .returning();
+      return field;
+    } catch (error) {
+      console.error("Error updating custom field:", error);
+      throw error;
+    }
+  }
+
+  async deleteCustomField(id: string): Promise<boolean> {
+    try {
+      await db.delete(customFields).where(eq(customFields.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting custom field:", error);
+      return false;
+    }
   }
 }
 

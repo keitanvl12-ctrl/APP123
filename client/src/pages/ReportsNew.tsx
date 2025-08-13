@@ -37,12 +37,15 @@ export default function ReportsNew() {
         .then(res => res.json()),
   });
 
-  const { data: userPerformance = [], isLoading: loadingUserPerf } = useQuery({
+  const { data: userPerformanceData = [], isLoading: loadingUserPerf } = useQuery({
     queryKey: ["/api/reports/user-performance", dateRange.startDate, dateRange.endDate, selectedDepartment],
     queryFn: () => 
       fetch(`/api/reports/user-performance?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&departmentId=${selectedDepartment}`)
         .then(res => res.json()),
   });
+
+  // Ensure userPerformance is always an array
+  const userPerformance = Array.isArray(userPerformanceData) ? userPerformanceData : [];
 
   const { data: resolutionTimeAnalysis = [], isLoading: loadingResTime } = useQuery({
     queryKey: ["/api/reports/resolution-time-analysis", dateRange.startDate, dateRange.endDate, selectedDepartment],
@@ -591,24 +594,24 @@ export default function ReportsNew() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span>Total de Tickets:</span>
-                      <span className="font-semibold">{filteredTickets.length}</span>
+                      <span className="font-semibold">{Array.isArray(filteredTickets) ? filteredTickets.length : 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Resolvidos:</span>
                       <span className="font-semibold text-green-600">
-                        {filteredTickets.filter((t: any) => t.status === 'resolved').length}
+                        {Array.isArray(filteredTickets) ? filteredTickets.filter((t: any) => t.status === 'resolved').length : 0}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Em Progresso:</span>
                       <span className="font-semibold text-blue-600">
-                        {filteredTickets.filter((t: any) => t.status === 'in_progress').length}
+                        {Array.isArray(filteredTickets) ? filteredTickets.filter((t: any) => t.status === 'in_progress').length : 0}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Abertos:</span>
                       <span className="font-semibold text-orange-600">
-                        {filteredTickets.filter((t: any) => t.status === 'open').length}
+                        {Array.isArray(filteredTickets) ? filteredTickets.filter((t: any) => t.status === 'open').length : 0}
                       </span>
                     </div>
                   </div>
