@@ -150,20 +150,14 @@ export default function RoleManagement() {
     });
   };
 
-  const startEdit = async (role: SystemRole) => {
+  const startEdit = (role: SystemRole) => {
     setEditingRole(role);
     setRoleName(role.name);
     setRoleDescription(role.description || '');
     
-    // Buscar permissões da função - use the endpoint that returns role permissions
-    try {
-      const rolePermissions = await apiRequest(`/api/permissions/roles/${role.id}/permissions`);
-      // Map the returned permissions to their codes
-      setSelectedPermissions(rolePermissions?.map((p: SystemPermission) => p.code) || []);
-    } catch (error) {
-      console.error('Erro ao buscar detalhes da função:', error);
-      setSelectedPermissions([]);
-    }
+    // SEMPRE começa com TODAS as permissões desmarcadas - o usuário deve marcar as que deseja
+    setSelectedPermissions([]);
+    console.log('🎯 Editando função:', role.name, '- Todas permissões desmarcadas, usuário deve selecionar as desejadas');
   };
 
   const handlePermissionChange = (permissionCode: string, checked: boolean) => {

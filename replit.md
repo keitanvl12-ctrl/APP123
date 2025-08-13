@@ -58,6 +58,7 @@ O sistema de funções e permissões está 100% funcional e operacional:
 - ✅ Endpoints protegidos retornando 401 para usuários sem permissão
 - ✅ Interface administrativa completa para gerenciamento de funções
 - ✅ Middleware de permissões ativo e testado nos endpoints críticos
+- ✅ Formulário de edição começa sempre desmarcado - usuário seleciona permissões desejadas
 
 # System Architecture
 
