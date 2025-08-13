@@ -229,12 +229,26 @@ export class DatabaseStorage implements IStorage {
           console.log(`⚠️ No SLA rule found for ticket ${ticket.ticketNumber}, using default 4h`);
         }
         
-        // Calculate progress percentage based on creation time vs SLA limit
+        // Calculate progress percentage usando nova função que considera pausas
         const createdAt = new Date(ticket.createdAt);
-        const now = ticket.resolvedAt ? new Date(ticket.resolvedAt) : new Date();
-        const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+        const now = new Date();
         
-        const progressPercent = Math.min(100, (totalHours / slaHours) * 100);
+        // Para tickets pausados ou resolvidos, não progride
+        let progressPercent = 0;
+        if (ticket.status === 'resolved' || ticket.status === 'on_hold') {
+          // Manter progresso atual se já existe, senão usar tempo até pausa/resolução
+          if (ticket.slaProgressPercent) {
+            progressPercent = ticket.slaProgressPercent;
+          } else {
+            const endTime = ticket.resolvedAt ? new Date(ticket.resolvedAt) : now;
+            const totalHours = (endTime.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+            progressPercent = Math.min(100, (totalHours / slaHours) * 100);
+          }
+        } else {
+          // Para tickets ativos, calcular progresso em tempo real
+          const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          progressPercent = Math.min(100, (totalHours / slaHours) * 100);
+        }
         
         // Determine SLA status
         let slaStatus = 'met';
@@ -260,9 +274,23 @@ export class DatabaseStorage implements IStorage {
         console.error(`Error calculating SLA for ticket ${ticket.id}:`, error);
         // Return ticket with default 4-hour SLA
         const createdAt = new Date(ticket.createdAt);
-        const now = ticket.resolvedAt ? new Date(ticket.resolvedAt) : new Date();
-        const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-        const progressPercent = Math.min(100, (totalHours / 4) * 100);
+        const now = new Date();
+        
+        let progressPercent = 0;
+        if (ticket.status === 'resolved' || ticket.status === 'on_hold') {
+          // Manter progresso atual se já existe
+          if (ticket.slaProgressPercent) {
+            progressPercent = ticket.slaProgressPercent;
+          } else {
+            const endTime = ticket.resolvedAt ? new Date(ticket.resolvedAt) : now;
+            const totalHours = (endTime.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+            progressPercent = Math.min(100, (totalHours / 4) * 100);
+          }
+        } else {
+          // Para tickets ativos, calcular progresso em tempo real
+          const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          progressPercent = Math.min(100, (totalHours / 4) * 100);
+        }
         
         return {
           ...ticket,

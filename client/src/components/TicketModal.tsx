@@ -138,37 +138,24 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       setLoading(true);
       console.log("🔍 Buscando campos customizados para:", ticket.ticketNumber);
       
-      // Buscar campos configurados da categoria E valores salvos
-      Promise.all([
-        // Buscar configuração de campos da categoria
-        fetch(`/api/custom-fields/category/${ticket.categoryId}?departmentId=${ticket.departmentId || ''}`, {
-          credentials: 'include'
-        }).then(res => res.json()),
-        // Buscar valores salvos do ticket
-        fetch(`/api/tickets/${ticket.id}/custom-fields`, {
-          credentials: 'include'
-        }).then(res => res.json())
-      ])
-        .then(([categoryFields, ticketValues]) => {
-          console.log("✅ Campos da categoria:", categoryFields);
-          console.log("✅ Valores salvos:", ticketValues);
-          
-          // Combinar campos da categoria com valores salvos
-          const fieldsWithValues = categoryFields.map(field => {
-            const savedValue = ticketValues.find(value => value.customFieldId === field.id);
-            return {
-              ...field,
-              value: savedValue?.value || '',
-              valueId: savedValue?.id
-            };
-          });
-          
-          console.log("✅ Campos combinados:", fieldsWithValues);
-          setCustomFields(fieldsWithValues || []);
+      // Buscar APENAS campos configurados em Administração (não valores salvos)
+      fetch(`/api/custom-fields/category/${ticket.categoryId}`, {
+        credentials: 'include'
+      })
+        .then(res => res.json())
+        .then(categoryFields => {
+          console.log("✅ Campos configurados em Administração:", categoryFields);
+          // Retornar apenas os campos como vazios/limpros para edição
+          const emptyFields = categoryFields.map(field => ({
+            ...field,
+            value: '', // Sempre vazio
+            valueId: null
+          }));
+          setCustomFields(emptyFields || []);
           setLoading(false);
         })
         .catch(err => {
-          console.error("❌ Erro ao buscar campos customizados:", err);
+          console.error("❌ Erro ao buscar campos configurados:", err);
           setCustomFields([]);
           setLoading(false);
         });
@@ -196,25 +183,12 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
     }
 
     const interval = setInterval(() => {
-      // Buscar dados atualizados do ticket para o SLA
-      fetch(`/api/tickets/${ticket.id}`, {
-        credentials: 'include'
-      })
-        .then(res => res.json())
-        .then(updatedTicket => {
-          // Atualizar o progresso do SLA no ticket se mudou
-          if (updatedTicket.slaProgressPercent !== ticket.slaProgressPercent) {
-            console.log('📊 SLA progress updated:', updatedTicket.slaProgressPercent);
-            // Forçar re-render através da callback de onUpdate
-            if (onUpdate) {
-              onUpdate();
-            }
-          }
-        })
-        .catch(err => {
-          console.error("❌ Erro ao atualizar progresso SLA:", err);
-        });
-    }, 30000); // Atualizar a cada 30 segundos
+      console.log('📊 Atualizando progresso SLA para ticket:', ticket.ticketNumber);
+      // Forçar reload de tickets do Kanban para pegar progresso atualizado
+      if (onUpdate) {
+        onUpdate();
+      }
+    }, 15000); // Atualizar a cada 15 segundos
 
     return () => clearInterval(interval);
   }, [isOpen, ticket?.id, ticket?.status, onUpdate]);

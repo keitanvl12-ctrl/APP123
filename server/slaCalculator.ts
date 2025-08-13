@@ -116,3 +116,60 @@ export function isSLACompliant(ticket: any, slaRule: any, pauseRecords: PauseRec
   const calculation = calculateSLA(ticket, slaRule, pauseRecords);
   return calculation?.isCompliant ?? false;
 }
+
+export function calculateSLAProgress(ticket: any, slaRule: any, pauseRecords: PauseRecord[] = []): number {
+  if (!slaRule) return 0;
+  
+  // Se ticket está resolvido ou pausado, não progride
+  if (ticket.status === 'resolved' || ticket.status === 'on_hold') {
+    return ticket.slaProgressPercent || 0;
+  }
+  
+  const createdAt = new Date(ticket.createdAt);
+  const now = new Date();
+  
+  // Calculate total paused time in minutes
+  let totalPausedMinutes = 0;
+  
+  pauseRecords.forEach(pause => {
+    const pausedAt = new Date(pause.pausedAt);
+    let resumedAt: Date;
+    
+    if (pause.resumedAt) {
+      resumedAt = new Date(pause.resumedAt);
+    } else if (pause.expectedReturnAt) {
+      // If still paused, use expected return time or current time, whichever is smaller
+      const expectedReturn = new Date(pause.expectedReturnAt);
+      resumedAt = expectedReturn < now ? expectedReturn : now;
+    } else {
+      // If no expected return time, consider paused until now
+      resumedAt = now;
+    }
+    
+    // Only count pause time if it's within the ticket's active period
+    const effectivePauseStart = pausedAt > createdAt ? pausedAt : createdAt;
+    const effectivePauseEnd = resumedAt < now ? resumedAt : now;
+    
+    if (effectivePauseEnd > effectivePauseStart) {
+      totalPausedMinutes += differenceInMinutes(effectivePauseEnd, effectivePauseStart);
+    }
+  });
+  
+  // Calculate total elapsed time in minutes
+  const totalElapsedMinutes = differenceInMinutes(now, createdAt);
+  
+  // Calculate effective time (elapsed - paused)
+  const effectiveMinutes = totalElapsedMinutes - totalPausedMinutes;
+  
+  // Convert SLA times from hours to minutes
+  const responseTimeLimitMinutes = slaRule.responseTime * 60;
+  const resolutionTimeLimitMinutes = slaRule.resolutionTime * 60;
+  
+  // Use response time for progress until first response, then resolution time
+  const slaLimitMinutes = ticket.status === 'resolved' ? resolutionTimeLimitMinutes : responseTimeLimitMinutes;
+  
+  // Calculate progress percentage (0-100)
+  const progressPercent = Math.min(100, (effectiveMinutes / slaLimitMinutes) * 100);
+  
+  return Math.round(progressPercent);
+}
