@@ -142,7 +142,8 @@ export class DatabaseStorage implements IStorage {
         description: tickets.description,
         status: tickets.status,
         priority: tickets.priority,
-        category: tickets.category,
+        categoryId: tickets.categoryId,
+        subcategoryId: tickets.subcategoryId,
         createdBy: tickets.createdBy,
         assignedTo: tickets.assignedTo,
         createdAt: tickets.createdAt,
@@ -188,7 +189,7 @@ export class DatabaseStorage implements IStorage {
         let slaSourceName = 'padrão';
         
         // Try to find SLA rule by category first (highest priority)
-        if (ticket.category && slaRulesList?.length > 0) {
+        if (ticket.categoryId && slaRulesList?.length > 0) {
           // Find category name by ID - load fresh categories if needed
           if (!categoriesList || categoriesList.length === 0) {
             console.log('🔄 Reloading categories...');
@@ -196,10 +197,10 @@ export class DatabaseStorage implements IStorage {
             console.log(`📊 Fresh categories loaded: ${freshCategories?.length || 0}`);
           }
           
-          const categoryObj = categoriesList?.find(cat => cat.id === ticket.category);
+          const categoryObj = categoriesList?.find(cat => cat.id === ticket.categoryId);
           const categoryName = categoryObj?.name;
           
-          console.log(`🔍 Looking for category ID: ${ticket.category}`);
+          console.log(`🔍 Looking for category ID: ${ticket.categoryId}`);
           console.log(`📝 Found category name: ${categoryName || 'NOT FOUND'}`);
           
           if (categoryName) {
@@ -344,7 +345,8 @@ export class DatabaseStorage implements IStorage {
         description: tickets.description,
         status: tickets.status,
         priority: tickets.priority,
-        category: tickets.category,
+        categoryId: tickets.categoryId,
+        subcategoryId: tickets.subcategoryId,
         createdBy: tickets.createdBy,
         assignedTo: tickets.assignedTo,
         createdAt: tickets.createdAt,

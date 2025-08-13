@@ -36,6 +36,7 @@ import ConfigurationPage from "@/pages/ConfigurationPage";
 import PermissionSettings from "@/pages/PermissionSettings";
 import HierarchyManagement from "@/pages/HierarchyManagement";
 import RolesManagement from "@/pages/RoleManagementSimple";
+import Subcategories from "@/pages/Subcategories";
 
 import HierarchyDemo from "@/components/HierarchyDemo";
 import { PermissionGuard, AdminOnly, SupervisorOnly } from "@/components/PermissionGuard";
@@ -213,6 +214,12 @@ function AppRouter() {
               <Route path="/categories">
                 <ProtectedRoute requiredRole="supervisor">
                   <Categories />
+                </ProtectedRoute>
+              </Route>
+
+              <Route path="/subcategories">
+                <ProtectedRoute requiredRole="supervisor">
+                  <Subcategories />
                 </ProtectedRoute>
               </Route>
 
