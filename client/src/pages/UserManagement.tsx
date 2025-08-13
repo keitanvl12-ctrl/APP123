@@ -541,6 +541,8 @@ export default function UserManagement() {
 
   const getRoleBadgeClass = (role: string): string => {
     switch (role) {
+      case 'administrador':
+        return 'bg-purple-100 text-purple-800';
       case 'admin':
         return 'bg-purple-100 text-purple-800';
       case 'supervisor':

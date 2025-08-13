@@ -228,12 +228,41 @@ export class DatabaseStorage implements IStorage {
 
   // Role Management
   async getAllRoles(): Promise<any[]> {
-    const roles = await db.select().from(systemRoles);
-    return roles.map(role => ({
-      ...role,
-      permissions: 0, // Simplified for now
-      userCount: 0,  // Simplified for now
-    }));
+    try {
+      const roles = await db.select().from(systemRoles);
+      
+      // Buscar contagem de usuários para cada função
+      const rolesWithCounts = await Promise.all(roles.map(async (role) => {
+        // Contar usuários com esta função  
+        console.log(`🔍 Contando usuários para função: ${role.id}`);
+        const userCount = await db
+          .select({ count: count() })
+          .from(users)
+          .where(eq(users.role, role.id));
+        
+        console.log(`👥 Usuários encontrados para ${role.id}:`, userCount[0]?.count || 0);
+        
+        // Contar permissões da função
+        console.log(`🔍 Contando permissões para função: ${role.id}`);
+        const permissionCount = await db
+          .select({ count: count() })
+          .from(rolePermissions)
+          .where(eq(rolePermissions.roleId, role.id));
+        
+        console.log(`🔑 Permissões encontradas para ${role.id}:`, permissionCount[0]?.count || 0);
+        
+        return {
+          ...role,
+          permissions: permissionCount[0]?.count || 0,
+          userCount: userCount[0]?.count || 0,
+        };
+      }));
+      
+      return rolesWithCounts;
+    } catch (error) {
+      console.error('Error fetching roles with counts:', error);
+      return [];
+    }
   }
 
   // Dashboard Stats
@@ -343,32 +372,40 @@ export class DatabaseStorage implements IStorage {
   async getAllStatusConfig(): Promise<any[]> {
     try {
       const result = await db.select().from(statusConfig);
-      return result;
+      if (result && result.length > 0) {
+        return result;
+      }
     } catch (error) {
       console.error("Error fetching status config:", error);
-      return [
-        { id: 'open', name: 'Aberto', value: 'open', color: '#ef4444', order: 1, isActive: true, isDefault: true },
-        { id: 'in_progress', name: 'Em Progresso', value: 'in_progress', color: '#3b82f6', order: 2, isActive: true, isDefault: false },
-        { id: 'on_hold', name: 'Em Espera', value: 'on_hold', color: '#f59e0b', order: 3, isActive: true, isDefault: false },
-        { id: 'resolved', name: 'Resolvido', value: 'resolved', color: '#10b981', order: 4, isActive: true, isDefault: false },
-        { id: 'closed', name: 'Fechado', value: 'closed', color: '#6b7280', order: 5, isActive: true, isDefault: false }
-      ];
     }
+    
+    // Retornar dados padrão sempre
+    return [
+      { id: 'open', name: 'Aberto', value: 'open', color: '#ef4444', order: 1, isActive: true, isDefault: true },
+      { id: 'in_progress', name: 'Em Progresso', value: 'in_progress', color: '#3b82f6', order: 2, isActive: true, isDefault: false },
+      { id: 'on_hold', name: 'Em Espera', value: 'on_hold', color: '#f59e0b', order: 3, isActive: true, isDefault: false },
+      { id: 'resolved', name: 'Resolvido', value: 'resolved', color: '#10b981', order: 4, isActive: true, isDefault: false },
+      { id: 'closed', name: 'Fechado', value: 'closed', color: '#6b7280', order: 5, isActive: true, isDefault: false }
+    ];
   }
 
   async getAllPriorityConfig(): Promise<any[]> {
     try {
       const result = await db.select().from(priorityConfig);
-      return result;
+      if (result && result.length > 0) {
+        return result;
+      }
     } catch (error) {
       console.error("Error fetching priority config:", error);
-      return [
-        { id: 'low', name: 'Baixa', value: 'low', color: '#10b981', order: 1, isActive: true, isDefault: true },
-        { id: 'medium', name: 'Média', value: 'medium', color: '#f59e0b', order: 2, isActive: true, isDefault: false },
-        { id: 'high', name: 'Alta', value: 'high', color: '#ef4444', order: 3, isActive: true, isDefault: false },
-        { id: 'critical', name: 'Crítica', value: 'critical', color: '#dc2626', order: 4, isActive: true, isDefault: false }
-      ];
     }
+    
+    // Retornar dados padrão sempre
+    return [
+      { id: 'low', name: 'Baixa', value: 'low', color: '#10b981', order: 1, isActive: true, isDefault: true },
+      { id: 'medium', name: 'Média', value: 'medium', color: '#f59e0b', order: 2, isActive: true, isDefault: false },
+      { id: 'high', name: 'Alta', value: 'high', color: '#ef4444', order: 3, isActive: true, isDefault: false },
+      { id: 'critical', name: 'Crítica', value: 'critical', color: '#dc2626', order: 4, isActive: true, isDefault: false }
+    ];
   }
 
   async getAllSlaConfig(): Promise<any[]> {
@@ -467,12 +504,45 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getCustomFields(): Promise<any[]> {
+    try {
+      const fields = await db.select().from(customFields);
+      console.log('✅ Custom fields fetched successfully:', fields.length);
+      return fields;
+    } catch (error) {
+      console.error("❌ Error fetching custom fields:", error);
+      return [];
+    }
+  }
+
   async getCustomFieldsByForm(formId: string): Promise<any[]> {
     try {
       const fields = await db.select().from(customFields);
       return fields;
     } catch (error) {
       console.error("Error fetching custom fields:", error);
+      return [];
+    }
+  }
+
+  async getCustomFieldsByCategoryAndDepartment(categoryId: string, departmentId: string): Promise<any[]> {
+    try {
+      const fields = await db
+        .select()
+        .from(customFields)
+        .where(
+          and(
+            eq(customFields.categoryId, categoryId),
+            eq(customFields.departmentId, departmentId),
+            eq(customFields.isActive, true)
+          )
+        )
+        .orderBy(customFields.order);
+      
+      console.log(`✅ Custom fields for category ${categoryId} and department ${departmentId}:`, fields.length);
+      return fields;
+    } catch (error) {
+      console.error("❌ Error fetching custom fields by category and department:", error);
       return [];
     }
   }
