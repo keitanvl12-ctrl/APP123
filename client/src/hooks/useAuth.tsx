@@ -69,24 +69,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
 
-    // Para usuários admin/administrador, dar acesso total temporário
-    const userRole = user.role || user.hierarchy || '';
-    if (userRole === 'admin' || userRole === 'administrador') {
-      return true; // Admin tem acesso a tudo
-    }
-
-    // USAR as permissões reais do banco de dados vindas do login
+    // Usar APENAS as permissões reais do banco de dados vindas do login
     if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
       // Direct permission check - usar exatamente como está no banco
       if (user.permissions.includes(permission)) return true;
       
       // Wildcard check para permissões como "tickets.*"
-      return user.permissions.some(p => 
+      const hasWildcard = user.permissions.some(p => 
         p.endsWith('*') && permission.startsWith(p.replace('*', ''))
       );
+      if (hasWildcard) return true;
     }
 
-    // Para outros usuários sem permissões específicas, negar acesso
+    // Fallback temporário apenas para admin/administrador até as permissões serem configuradas
+    const userRole = user.role || user.hierarchy || '';
+    if (userRole === 'admin' || userRole === 'administrador') {
+      console.log(`⚠️ FALLBACK: Admin ${user.name} acessando ${permission} sem permissão específica`);
+      return true;
+    }
+
+    console.log(`❌ PERMISSÃO NEGADA: ${user.name} (${userRole}) tentando acessar ${permission}`);
+    console.log(`📋 Permissões do usuário:`, user.permissions);
     return false;
   };
 
