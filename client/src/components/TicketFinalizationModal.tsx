@@ -98,16 +98,23 @@ function TicketFinalizationModal({ isOpen, onClose, ticket, comments }: TicketFi
     }
 
     try {
-      // Adicionar comentário de finalização
-      await apiRequest(`/api/tickets/${ticket.id}/comments`, 'POST', {
-        content: finalizationData.resolutionComment
-      });
-
-      // Atualizar status para resolvido
-      await apiRequest(`/api/tickets/${ticket.id}`, 'PATCH', {
+      // Usar o endpoint específico de finalização
+      const finalizationPayload = {
         status: 'resolved',
-        resolvedAt: new Date().toISOString()
-      });
+        finalizationData: {
+          comment: finalizationData.resolutionComment,
+          hoursSpent: calculateWorkedHours(),
+          equipmentRemoved: finalizationData.equipmentRetired,
+          materialsUsed: finalizationData.materialsUsed,
+        },
+        progress: 100
+      };
+
+      console.log('🎯 Enviando dados de finalização:', finalizationPayload);
+
+      const response = await apiRequest(`/api/tickets/${ticket.id}/finalize`, 'PATCH', finalizationPayload);
+      
+      console.log('✅ Resposta da finalização:', response);
 
       toast({
         title: "✅ Ticket finalizado!",
@@ -126,9 +133,6 @@ function TicketFinalizationModal({ isOpen, onClose, ticket, comments }: TicketFi
       });
 
       onClose();
-      
-      // Recarregar página para atualizar dados
-      setTimeout(() => window.location.reload(), 500);
       
     } catch (error) {
       console.error('Erro ao finalizar ticket:', error);

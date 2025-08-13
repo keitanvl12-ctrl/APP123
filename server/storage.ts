@@ -334,6 +334,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTicket(ticket: InsertTicket): Promise<Ticket> {
+    // Generate ticket number if not provided
+    if (!ticket.ticketNumber) {
+      const ticketCount = await db.select({ count: count() }).from(tickets);
+      const nextNumber = (ticketCount[0]?.count || 0) + 1;
+      ticket.ticketNumber = `TICK-${nextNumber.toString().padStart(3, '0')}`;
+    }
+    
     const [newTicket] = await db.insert(tickets).values(ticket).returning();
     return newTicket;
   }
