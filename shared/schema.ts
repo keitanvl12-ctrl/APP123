@@ -57,6 +57,8 @@ export const tickets = pgTable("tickets", {
   resolvedAt: timestamp("resolved_at"),
   pauseReason: text("pause_reason"), // Motivo da pausa quando status = on_hold
   pausedAt: timestamp("paused_at"), // Data/hora quando foi pausado
+  totalPausedMinutes: integer("total_paused_minutes").default(0).notNull(), // Tempo total pausado acumulado em minutos
+  slaProgressPercent: integer("sla_progress_percent").default(0), // Progresso SLA quando pausado/resolvido
 });
 
 export const comments = pgTable("comments", {

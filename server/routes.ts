@@ -318,8 +318,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("PATCH /api/tickets/:id - Request body:", req.body);
       console.log("PATCH /api/tickets/:id - Ticket ID:", req.params.id);
       
+      const ticketId = req.params.id;
+      const currentTicket = await storage.getTicket(ticketId);
+      
+      if (!currentTicket) {
+        return res.status(404).json({ message: "Ticket não encontrado" });
+      }
+      
       // Skip validation for now and convert directly for database
       const validatedData = { ...req.body };
+      
+      // Lógica especial para gerenciar SLA quando status muda
+      if (validatedData.status && validatedData.status !== currentTicket.status) {
+        const now = new Date();
+        
+        // Se estava pausado e agora não está mais pausado
+        if (currentTicket.status === 'on_hold' && validatedData.status !== 'on_hold') {
+          if (currentTicket.pausedAt) {
+            // Calcular tempo que ficou pausado desta vez
+            const pauseStart = new Date(currentTicket.pausedAt);
+            const pauseMinutes = Math.floor((now.getTime() - pauseStart.getTime()) / (1000 * 60));
+            
+            // Somar ao tempo total pausado acumulado
+            const totalPausedMinutes = (currentTicket.totalPausedMinutes || 0) + pauseMinutes;
+            
+            console.log(`🔓 Ticket ${currentTicket.ticketNumber} despausado - pausou por ${pauseMinutes} min, total acumulado: ${totalPausedMinutes} min`);
+            
+            validatedData.totalPausedMinutes = totalPausedMinutes;
+            validatedData.pausedAt = null; // Limpar flag de pausado
+            validatedData.pauseReason = null;
+          }
+        }
+        
+        // Se agora está sendo pausado
+        if (validatedData.status === 'on_hold' && currentTicket.status !== 'on_hold') {
+          validatedData.pausedAt = now;
+          console.log(`⏸️ Ticket ${currentTicket.ticketNumber} sendo pausado agora`);
+        }
+        
+        // Se ticket foi resolvido
+        if (validatedData.status === 'resolved') {
+          validatedData.resolvedAt = now;
+          console.log(`✅ Ticket ${currentTicket.ticketNumber} resolvido`);
+        }
+      }
       
       // Convert timestamp strings to Date objects for Drizzle
       if (validatedData.pausedAt && typeof validatedData.pausedAt === 'string') {

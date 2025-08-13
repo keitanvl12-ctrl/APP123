@@ -315,29 +315,38 @@ export class DatabaseStorage implements IStorage {
         let remainingHours = 0;
         let deadline = new Date();
         
-        // Calculate SLA with simple pause logic for now (business hours disabled temporarily)
-        let pausedTime = 0;
+        // Calculate SLA with proper pause logic
+        const totalElapsedMinutes = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+        let totalPausedMinutes = ticket.totalPausedMinutes || 0;
         
-        // Calculate paused time for on_hold tickets
+        // Calculate paused time for currently on_hold tickets
         if (ticket.status === 'on_hold' && ticket.pausedAt) {
           const pausedAt = new Date(ticket.pausedAt);
-          // Calculate time before pause
-          effectiveHours = (pausedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-          // Calculate time spent paused (not counting towards SLA)
-          pausedTime = (now.getTime() - pausedAt.getTime()) / (1000 * 60 * 60);
+          const currentPauseMinutes = Math.floor((now.getTime() - pausedAt.getTime()) / (1000 * 60));
+          totalPausedMinutes += currentPauseMinutes;
+        }
+        
+        // Effective time = total elapsed - total paused
+        const effectiveMinutes = totalElapsedMinutes - totalPausedMinutes;
+        effectiveHours = effectiveMinutes / 60;
+        
+        // Calculate SLA progress and remaining time based on status
+        if (ticket.status === 'on_hold') {
+          // For paused tickets, freeze at current progress
           remainingHours = Math.max(0, slaHours - effectiveHours);
-          deadline = new Date(pausedAt.getTime() + (remainingHours * 60 * 60 * 1000));
+          deadline = new Date(createdAt.getTime() + ((slaHours * 60 + totalPausedMinutes) * 60 * 1000));
         } else if (ticket.status === 'resolved' && ticket.resolvedAt) {
-          // For resolved tickets, use time until resolution
+          // For resolved tickets, use time until resolution minus any pauses
           const resolvedAt = new Date(ticket.resolvedAt);
-          effectiveHours = (resolvedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          const totalMinutesAtResolution = (resolvedAt.getTime() - createdAt.getTime()) / (1000 * 60);
+          const resolvedPausedMinutes = ticket.totalPausedMinutes || 0;
+          effectiveHours = (totalMinutesAtResolution - resolvedPausedMinutes) / 60;
           remainingHours = 0;
           deadline = resolvedAt;
         } else {
-          // For active tickets, use current time
-          effectiveHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          // For active tickets, use effective time
           remainingHours = Math.max(0, slaHours - effectiveHours);
-          deadline = new Date(createdAt.getTime() + (slaHours * 60 * 60 * 1000));
+          deadline = new Date(createdAt.getTime() + ((slaHours * 60 + totalPausedMinutes) * 60 * 1000));
         }
         
         // Calculate progress based on business hours only
