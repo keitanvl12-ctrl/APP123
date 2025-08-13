@@ -393,43 +393,48 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 )}
               />
 
-              {/* Subcategoria */}
-              <FormField
-                control={form.control}
-                name="subcategoryId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subcategoria *</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        setSelectedSubcategoryId(value);
-                      }} 
-                      value={field.value || ""}
-                      disabled={!selectedCategoryId}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="focus:ring-primary focus:border-primary">
-                          <SelectValue placeholder={!selectedCategoryId ? "Selecione categoria primeiro" : "Selecione a subcategoria"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {subcategories?.map((subcategory) => (
-                          <SelectItem key={subcategory.id} value={subcategory.id}>
-                            {subcategory.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    {selectedCategoryId && (!subcategories || subcategories.length === 0) && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Carregando subcategorias...
+              {/* TESTE EMERGENCIAL: Subcategoria com destaque visual */}
+              <div className="p-4 border-4 border-red-500 bg-red-50 my-4">
+                <h2 className="text-xl font-bold text-red-800 mb-2">🚨 CAMPO SUBCATEGORIA - TESTE VISUAL</h2>
+                <FormField
+                  control={form.control}
+                  name="subcategoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg font-bold text-red-800">Subcategoria *</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedSubcategoryId(value);
+                        }} 
+                        value={field.value || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="border-4 border-red-500 h-12 text-lg">
+                            <SelectValue placeholder="SELECIONE A SUBCATEGORIA" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="teste1">Teste Subcategoria 1</SelectItem>
+                          <SelectItem value="teste2">Teste Subcategoria 2</SelectItem>
+                          {subcategories?.map((subcategory) => (
+                            <SelectItem key={subcategory.id} value={subcategory.id}>
+                              {subcategory.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      <p className="text-red-600 font-bold">
+                        Debug: Categoria selecionada: {selectedCategoryId || "NENHUMA"}
                       </p>
-                    )}
-                  </FormItem>
-                )}
-              />
+                      <p className="text-red-600 font-bold">
+                        Debug: Subcategorias: {subcategories?.length || 0}
+                      </p>
+                    </FormItem>
+                  )}
+                />
+              </div>
 
 
 
