@@ -138,14 +138,33 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       setLoading(true);
       console.log("🔍 Buscando campos customizados para:", ticket.ticketNumber);
       
-      // Buscar campos customizados
-      fetch(`/api/tickets/${ticket.id}/custom-fields`, {
-        credentials: 'include'
-      })
-        .then(res => res.json())
-        .then(data => {
-          console.log("✅ Campos customizados encontrados:", data);
-          setCustomFields(data || []);
+      // Buscar campos configurados da categoria E valores salvos
+      Promise.all([
+        // Buscar configuração de campos da categoria
+        fetch(`/api/custom-fields/category/${ticket.categoryId}?departmentId=${ticket.departmentId || ''}`, {
+          credentials: 'include'
+        }).then(res => res.json()),
+        // Buscar valores salvos do ticket
+        fetch(`/api/tickets/${ticket.id}/custom-fields`, {
+          credentials: 'include'
+        }).then(res => res.json())
+      ])
+        .then(([categoryFields, ticketValues]) => {
+          console.log("✅ Campos da categoria:", categoryFields);
+          console.log("✅ Valores salvos:", ticketValues);
+          
+          // Combinar campos da categoria com valores salvos
+          const fieldsWithValues = categoryFields.map(field => {
+            const savedValue = ticketValues.find(value => value.customFieldId === field.id);
+            return {
+              ...field,
+              value: savedValue?.value || '',
+              valueId: savedValue?.id
+            };
+          });
+          
+          console.log("✅ Campos combinados:", fieldsWithValues);
+          setCustomFields(fieldsWithValues || []);
           setLoading(false);
         })
         .catch(err => {
