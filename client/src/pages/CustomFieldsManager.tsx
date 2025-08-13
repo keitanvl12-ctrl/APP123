@@ -45,6 +45,7 @@ export default function CustomFieldsManager() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingField, setEditingField] = useState<CustomField | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [fieldForm, setFieldForm] = useState({
     name: '',
     type: 'text' as 'text' | 'select' | 'textarea' | 'number' | 'email' | 'tel' | 'date',
@@ -72,6 +73,11 @@ export default function CustomFieldsManager() {
   // Fetch all departments
   const { data: departments = [] } = useQuery<Department[]>({
     queryKey: ["/api/departments"],
+  });
+
+  // Fetch categories for filter
+  const { data: categories = [] } = useQuery<{id: string, name: string}[]>({
+    queryKey: ["/api/categories"],
   });
 
   // Create custom field mutation

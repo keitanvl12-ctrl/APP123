@@ -117,9 +117,8 @@ const Subcategories: React.FC = () => {
   // Deletar subcategoria
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/subcategories/${id}`, {
-        method: 'DELETE'
-      });
+      const response = await apiRequest(`/api/subcategories/${id}`, "DELETE");
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/subcategories'] });
