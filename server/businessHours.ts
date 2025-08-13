@@ -34,7 +34,7 @@ export function isWithinBusinessHours(date: Date, config: BusinessHoursConfig = 
   // Check if it's within working hours
   const isWorkingHour = hour >= config.startHour && hour < config.endHour;
   
-  console.log(`🕒 Checking business hours for ${saoPauloTime.toLocaleString('pt-BR', { timeZone: config.timezone })}: Day ${dayOfWeek}, Hour ${hour} - ${isWorkingDay && isWorkingHour ? 'WITHIN' : 'OUTSIDE'} business hours`);
+  // console.log(`🕒 Checking business hours for ${saoPauloTime.toLocaleString('pt-BR', { timeZone: config.timezone })}: Day ${dayOfWeek}, Hour ${hour} - ${isWorkingDay && isWorkingHour ? 'WITHIN' : 'OUTSIDE'} business hours`);
   
   return isWorkingDay && isWorkingHour;
 }
@@ -82,7 +82,7 @@ export function calculateBusinessHours(startDate: Date, endDate: Date, config: B
   let current = new Date(startDate);
   const end = new Date(endDate);
   
-  console.log(`📊 Calculando horas úteis entre ${startDate.toLocaleString('pt-BR')} e ${endDate.toLocaleString('pt-BR')}`);
+  // console.log(`📊 Calculando horas úteis entre ${startDate.toLocaleString('pt-BR')} e ${endDate.toLocaleString('pt-BR')}`);
   
   while (current < end) {
     const nextHour = new Date(current);
@@ -94,13 +94,13 @@ export function calculateBusinessHours(startDate: Date, endDate: Date, config: B
       const segmentHours = (segmentEnd.getTime() - current.getTime()) / (1000 * 60 * 60);
       effectiveHours += segmentHours;
       
-      console.log(`⏰ Hora útil contabilizada: ${current.toLocaleString('pt-BR')} - ${segmentEnd.toLocaleString('pt-BR')} = ${segmentHours.toFixed(2)}h`);
+      // console.log(`⏰ Hora útil contabilizada: ${current.toLocaleString('pt-BR')} - ${segmentEnd.toLocaleString('pt-BR')} = ${segmentHours.toFixed(2)}h`);
     }
     
     current = nextHour;
   }
   
-  console.log(`✅ Total de horas úteis: ${effectiveHours.toFixed(2)}h`);
+  // console.log(`✅ Total de horas úteis: ${effectiveHours.toFixed(2)}h`);
   return effectiveHours;
 }
 
@@ -139,10 +139,10 @@ export function calculateRemainingBusinessHours(
     }
   }
   
-  console.log(`⏰ SLA criado em: ${createdAt.toLocaleString('pt-BR')}`);
-  console.log(`⏰ Horas efetivas usadas: ${effectiveHours.toFixed(2)}h de ${slaHours}h`);
-  console.log(`⏰ Horas restantes: ${remainingHours.toFixed(2)}h`);
-  console.log(`⏰ Prazo final (horário útil): ${deadline.toLocaleString('pt-BR')}`);
+  // console.log(`⏰ SLA criado em: ${createdAt.toLocaleString('pt-BR')}`);
+  // console.log(`⏰ Horas efetivas usadas: ${effectiveHours.toFixed(2)}h de ${slaHours}h`);
+  // console.log(`⏰ Horas restantes: ${remainingHours.toFixed(2)}h`);
+  // console.log(`⏰ Prazo final (horário útil): ${deadline.toLocaleString('pt-BR')}`);
   
   return {
     remainingHours,

@@ -9,7 +9,6 @@ import {
   type Subcategory, type InsertSubcategory
 } from "@shared/schema";
 import { calculateSLA } from "./slaCalculator";
-import { calculateRemainingBusinessHours, isWithinBusinessHours } from "./businessHours";
 
 export interface IStorage {
   // User operations
@@ -255,34 +254,29 @@ export class DatabaseStorage implements IStorage {
         let remainingHours = 0;
         let deadline = new Date();
         
+        // Calculate SLA with simple pause logic for now (business hours disabled temporarily)
+        let pausedTime = 0;
+        
+        // Calculate paused time for on_hold tickets
         if (ticket.status === 'on_hold' && ticket.pausedAt) {
-          // For paused tickets, calculate business hours until pause
           const pausedAt = new Date(ticket.pausedAt);
-          const businessHoursCalc = calculateRemainingBusinessHours(createdAt, slaHours, pausedAt);
-          effectiveHours = businessHoursCalc.effectiveHours;
-          remainingHours = businessHoursCalc.remainingHours;
-          deadline = businessHoursCalc.deadline;
-          
-          const pausedTime = (now.getTime() - pausedAt.getTime()) / (1000 * 60 * 60);
-          console.log(`⏸️ TICKET ${ticket.ticketNumber} pausado há ${pausedTime.toFixed(1)}h - SLA congelado (apenas horário útil)`);
+          // Calculate time before pause
+          effectiveHours = (pausedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          // Calculate time spent paused (not counting towards SLA)
+          pausedTime = (now.getTime() - pausedAt.getTime()) / (1000 * 60 * 60);
+          remainingHours = Math.max(0, slaHours - effectiveHours);
+          deadline = new Date(pausedAt.getTime() + (remainingHours * 60 * 60 * 1000));
         } else if (ticket.status === 'resolved' && ticket.resolvedAt) {
-          // For resolved tickets, calculate business hours until resolution
+          // For resolved tickets, use time until resolution
           const resolvedAt = new Date(ticket.resolvedAt);
-          const businessHoursCalc = calculateRemainingBusinessHours(createdAt, slaHours, resolvedAt);
-          effectiveHours = businessHoursCalc.effectiveHours;
-          remainingHours = 0; // Resolved tickets have no remaining time
-          deadline = businessHoursCalc.deadline;
+          effectiveHours = (resolvedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          remainingHours = 0;
+          deadline = resolvedAt;
         } else {
-          // For active tickets, calculate current business hours progress
-          const businessHoursCalc = calculateRemainingBusinessHours(createdAt, slaHours);
-          effectiveHours = businessHoursCalc.effectiveHours;
-          remainingHours = businessHoursCalc.remainingHours;
-          deadline = businessHoursCalc.deadline;
-          
-          // If outside business hours, SLA is paused
-          if (!isWithinBusinessHours(now)) {
-            console.log(`🌙 TICKET ${ticket.ticketNumber} - Fora do horário útil, SLA pausado automaticamente`);
-          }
+          // For active tickets, use current time
+          effectiveHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          remainingHours = Math.max(0, slaHours - effectiveHours);
+          deadline = new Date(createdAt.getTime() + (slaHours * 60 * 60 * 1000));
         }
         
         // Calculate progress based on business hours only
@@ -296,15 +290,13 @@ export class DatabaseStorage implements IStorage {
           slaStatus = 'at_risk';
         }
         
-        // Use business hours calculated deadline and remaining time
+        // Log SLA status (simplified)
         if (ticket.status === 'on_hold') {
-          console.log(`⏸️ TICKET ${ticket.ticketNumber} - Tempo restante congelado: ${remainingHours.toFixed(1)}h (horário útil)`);
+          console.log(`⏸️ TICKET ${ticket.ticketNumber} - Tempo restante congelado: ${remainingHours.toFixed(1)}h`);
         } else if (ticket.status === 'resolved') {
-          console.log(`✅ TICKET ${ticket.ticketNumber} - Resolvido em ${effectiveHours.toFixed(1)}h (horário útil)`);
-        } else if (!isWithinBusinessHours(now)) {
-          console.log(`🌙 TICKET ${ticket.ticketNumber} - SLA pausado (fora do horário: ${remainingHours.toFixed(1)}h restantes)`);
+          console.log(`✅ TICKET ${ticket.ticketNumber} - Resolvido em ${effectiveHours.toFixed(1)}h`);
         } else {
-          console.log(`⏰ TICKET ${ticket.ticketNumber} - Ativo no horário útil: ${remainingHours.toFixed(1)}h restantes`);
+          console.log(`⏰ TICKET ${ticket.ticketNumber} - Ativo: ${remainingHours.toFixed(1)}h restantes`);
         }
         
         return {
@@ -314,9 +306,8 @@ export class DatabaseStorage implements IStorage {
           slaProgressPercent: Math.round(progressPercent),
           slaStatus: slaStatus,
           slaSource: slaSourceName,
-          slaDeadline: deadline.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
-          effectiveHoursUsed: effectiveHours,
-          isWithinBusinessHours: isWithinBusinessHours(now)
+          slaDeadline: deadline.toLocaleString('pt-BR'),
+          effectiveHoursUsed: effectiveHours
         };
       } catch (error) {
         console.error(`Error calculating SLA for ticket ${ticket.id}:`, error);
