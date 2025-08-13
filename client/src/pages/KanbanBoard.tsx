@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
 import TicketModal from '@/components/TicketModal';
-import CreateTicketModal from '@/components/CreateTicketModal';
+// CreateTicketModal foi removido - usando SimpleTicketModal no TopBar
 import TicketFinalizationModal from '@/components/TicketFinalizationModal';
 import ServiceOrderModal from '@/components/ServiceOrderModal';
 import DeleteConfirmationDialog from '@/components/DeleteConfirmationDialog';
@@ -1356,18 +1356,7 @@ export default function KanbanBoard() {
         />
       )}
 
-      {/* Modal de edição de ticket */}
-      {editModal.isOpen && editModal.ticket && (
-        <CreateTicketModal
-          isOpen={editModal.isOpen}
-          onClose={() => setEditModal({ isOpen: false, ticket: null })}
-          onTicketCreated={() => {
-            queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
-            setEditModal({ isOpen: false, ticket: null });
-          }}
-          editTicket={editModal.ticket}
-        />
-      )}
+      {/* Modal de edição removido - agora usando TicketModal para visualização/edição */}
 
       {/* Modal de Confirmação de Exclusão */}
       <DeleteConfirmationDialog

@@ -36,6 +36,7 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
     requesterDepartment: '',
     responsibleDepartment: '',
     category: '',
+    subcategory: '',
     priority: 'Média',
     description: '',
     attachments: [] as File[],
@@ -45,6 +46,7 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: departments = [] } = useQuery<Department[]>({
@@ -58,11 +60,28 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
     enabled: isOpen && !!formData.responsibleDepartment
   });
 
-  // DESABILITAR campos customizados - agora baseados em subcategorias
+  // Buscar subcategorias baseadas na categoria selecionada
+  const { data: subcategories = [] } = useQuery<any[]>({
+    queryKey: ['/api/subcategories', selectedCategoryId],
+    queryFn: async () => {
+      if (!selectedCategoryId) return [];
+      const response = await fetch(`/api/subcategories?categoryId=${selectedCategoryId}`);
+      if (!response.ok) throw new Error('Erro ao buscar subcategorias');
+      return response.json();
+    },
+    enabled: isOpen && !!selectedCategoryId,
+  });
+
+  // Buscar campos customizados baseados na subcategoria selecionada
   const { data: customFields = [] } = useQuery<CustomField[]>({
-    queryKey: ["/api/custom-fields/disabled"],
-    queryFn: async () => [],
-    enabled: false,
+    queryKey: ['/api/custom-fields/subcategory', selectedSubcategoryId],
+    queryFn: async () => {
+      if (!selectedSubcategoryId) return [];
+      const response = await fetch(`/api/custom-fields?subcategoryId=${selectedSubcategoryId}`);
+      if (!response.ok) throw new Error('Erro ao buscar campos customizados');
+      return response.json();
+    },
+    enabled: isOpen && !!selectedSubcategoryId,
   });
 
   // Buscar dados do usuário logado
@@ -94,10 +113,12 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
       ...prev, 
       responsibleDepartment: departmentId,
       category: '',
+      subcategory: '',
       customFields: {}
     }));
     setSelectedCategory(null);
     setSelectedCategoryId('');
+    setSelectedSubcategoryId('');
   };
 
   const handleCategoryChange = (categoryId: string) => {
@@ -107,7 +128,18 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
     setFormData(prev => ({ 
       ...prev, 
       category: categoryId,
+      subcategory: '', // Reset subcategoria quando categoria muda
       customFields: {} // Limpar campos customizados ao trocar categoria
+    }));
+    setSelectedSubcategoryId(''); // Reset subcategoria selecionada
+  };
+
+  const handleSubcategoryChange = (subcategoryId: string) => {
+    setSelectedSubcategoryId(subcategoryId);
+    setFormData(prev => ({ 
+      ...prev, 
+      subcategory: subcategoryId,
+      customFields: {} // Limpar campos customizados ao trocar subcategoria
     }));
   };
 
@@ -116,10 +148,12 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
       ...prev, 
       responsibleDepartment: departmentId,
       category: '', // Limpar categoria ao trocar departamento responsável
+      subcategory: '', // Limpar subcategoria também
       customFields: {} // Limpar campos customizados
     }));
     setSelectedCategory(null);
     setSelectedCategoryId('');
+    setSelectedSubcategoryId('');
   };
 
   const handleCustomFieldChange = (fieldId: string, value: string) => {
@@ -169,11 +203,14 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
           requesterDepartment: '',
           responsibleDepartment: '',
           category: '',
+          subcategory: '',
           priority: 'Média',
           description: '',
           attachments: [],
           customFields: {}
         });
+        setSelectedCategoryId('');
+        setSelectedSubcategoryId('');
       } else {
         alert('Erro ao criar ticket');
       }
@@ -498,58 +535,49 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
                 </div>
               )}
 
-              {/* TESTE EMERGENCIAL: Campo Subcategoria com destaque vermelho */}
-              <div style={{
-                padding: '20px',
-                border: '4px solid #ef4444',
-                borderRadius: '8px',
-                backgroundColor: '#fef2f2',
-                margin: '16px 0',
-                gridColumn: 'span 2'
-              }}>
-                <h3 style={{
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  color: '#dc2626',
-                  marginBottom: '12px'
-                }}>
-                  🚨 CAMPO SUBCATEGORIA - TESTE VISUAL
-                </h3>
-                <label style={{
-                  display: 'block',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  color: '#dc2626',
-                  marginBottom: '8px'
-                }}>
-                  Subcategoria <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <select
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    border: '3px solid #ef4444',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    outline: 'none',
-                    backgroundColor: 'white'
-                  }}
-                >
-                  <option value="">SELECIONE A SUBCATEGORIA</option>
-                  <option value="teste1">Teste Subcategoria 1</option>
-                  <option value="teste2">Teste Subcategoria 2</option>
-                  <option value="teste3">Teste Subcategoria 3</option>
-                </select>
-                <p style={{
-                  fontSize: '14px',
-                  color: '#dc2626',
-                  fontWeight: 'bold',
-                  marginTop: '8px'
-                }}>
-                  DEBUG: Este campo deve aparecer logo após Categoria
-                </p>
-              </div>
+              {/* Subcategoria */}
+              {formData.category && (
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '6px'
+                  }}>
+                    Subcategoria <span style={{ color: '#ef4444' }}>*</span>
+                    <span style={{ 
+                      fontSize: '12px', 
+                      color: '#6b7280', 
+                      fontWeight: 'normal',
+                      display: 'block'
+                    }}>
+                      (Especifique o tipo da solicitação)
+                    </span>
+                  </label>
+                  <select
+                    value={formData.subcategory}
+                    onChange={(e) => handleSubcategoryChange(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      backgroundColor: 'white'
+                    }}
+                    required
+                  >
+                    <option value="">Selecione a subcategoria</option>
+                    {subcategories.map((subcategory) => (
+                      <option key={subcategory.id} value={subcategory.id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Prioridade */}
               <div>
@@ -584,8 +612,8 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
               </div>
             </div>
 
-            {/* Campos Customizados por Categoria */}
-            {selectedCategoryId && customFields && customFields.length > 0 && (
+            {/* Campos Customizados por Subcategoria */}
+            {selectedSubcategoryId && customFields && customFields.length > 0 && (
               <div style={{ marginBottom: '24px' }}>
                 <h3 style={{ 
                   fontSize: '16px', 
