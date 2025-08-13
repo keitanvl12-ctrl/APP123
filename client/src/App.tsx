@@ -48,15 +48,22 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode,
   const { isAuthenticated, isLoading, hasPermission } = useAuth();
   const [, setLocation] = useLocation();
 
+  console.log(`🛡️ ProtectedRoute - Auth: ${isAuthenticated}, Loading: ${isLoading}, Required: ${requiredRole}`);
+
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
+        console.log(`🔒 ProtectedRoute - Não autenticado, redirecionando para login`);
         setLocation('/login');
         return;
       }
       if (requiredRole && !hasPermission(requiredRole)) {
+        console.log(`🚫 ProtectedRoute - Sem permissão ${requiredRole}, redirecionando para unauthorized`);
         setLocation('/unauthorized');
         return;
+      }
+      if (requiredRole && hasPermission(requiredRole)) {
+        console.log(`✅ ProtectedRoute - Permissão ${requiredRole} OK, renderizando componente`);
       }
     }
   }, [isAuthenticated, isLoading, requiredRole, setLocation, hasPermission]);

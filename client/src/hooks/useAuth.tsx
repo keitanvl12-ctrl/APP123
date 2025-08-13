@@ -40,6 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (token && userData) {
           const user = JSON.parse(userData);
+          console.log('🔐 Inicializando auth com usuário:', user.name);
+          console.log('🔑 Permissões do usuário:', user.permissions?.length || 0);
           setUser(user);
         }
       } catch (error) {
@@ -67,22 +69,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const hasPermission = (permission: string): boolean => {
-    if (!user) return false;
+    if (!user) {
+      console.log(`❌ hasPermission: usuário não autenticado`);
+      return false;
+    }
 
     // Sistema de permissões universal: usar as permissões vindas do banco baseadas na função do usuário
     if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
       // Direct permission check - verificar se o usuário tem a permissão específica
-      if (user.permissions.includes(permission)) return true;
+      if (user.permissions.includes(permission)) {
+        console.log(`✅ hasPermission: ${user.name} tem permissão ${permission}`);
+        return true;
+      }
       
       // Wildcard check para permissões como "tickets.*"
       const hasWildcard = user.permissions.some(p => 
         p.endsWith('*') && permission.startsWith(p.replace('*', ''))
       );
-      if (hasWildcard) return true;
+      if (hasWildcard) {
+        console.log(`✅ hasPermission: ${user.name} tem permissão wildcard para ${permission}`);
+        return true;
+      }
     }
 
     // Se chegou aqui, o usuário não tem a permissão específica
-    console.log(`❌ Acesso negado para ${user.name} (${user.role}) - permissão ${permission} não encontrada`);
+    console.log(`❌ hasPermission: ${user.name} (${user.role}) - permissão ${permission} não encontrada`);
+    console.log(`🔍 Permissões disponíveis:`, user.permissions?.slice(0, 5));
     return false;
   };
 
