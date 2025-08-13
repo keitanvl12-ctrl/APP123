@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, desc, or, sql, count, asc, like } from "drizzle-orm";
+import { eq, and, desc, or, sql, count, asc, like, inArray } from "drizzle-orm";
 import { 
   users, tickets, comments, departments, attachments,
   systemRoles, systemPermissions, rolePermissions,
@@ -871,19 +871,34 @@ export class DatabaseStorage implements IStorage {
 
   async getCustomFieldsByCategoryAndDepartment(categoryId: string, departmentId: string): Promise<any[]> {
     try {
+      console.log(`📊 Buscando campos para categoria ${categoryId} e departamento ${departmentId}`);
+      
+      // Buscar subcategorias da categoria
+      const subcategoriesForCategory = await db
+        .select({ id: subcategories.id })
+        .from(subcategories)
+        .where(eq(subcategories.categoryId, categoryId));
+      
+      if (subcategoriesForCategory.length === 0) {
+        console.log("❌ Nenhuma subcategoria encontrada para a categoria");
+        return [];
+      }
+      
+      const subcategoryIds = subcategoriesForCategory.map(sub => sub.id);
+      
+      // Buscar campos das subcategorias
       const fields = await db
         .select()
         .from(customFields)
         .where(
           and(
-            eq(customFields.categoryId, categoryId),
-            eq(customFields.departmentId, departmentId),
+            inArray(customFields.subcategoryId, subcategoryIds),
             eq(customFields.isActive, true)
           )
         )
         .orderBy(customFields.order);
       
-      console.log(`✅ Custom fields for category ${categoryId} and department ${departmentId}:`, fields.length);
+      console.log(`✅ Campos encontrados: ${fields.length}`);
       return fields;
     } catch (error) {
       console.error("❌ Error fetching custom fields by category and department:", error);
@@ -1091,6 +1106,23 @@ export class DatabaseStorage implements IStorage {
       return allSubcategories;
     } catch (error) {
       console.error("Error fetching subcategories:", error);
+      return [];
+    }
+  }
+
+  async getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]> {
+    try {
+      console.log(`📊 Buscando subcategorias para categoria: ${categoryId}`);
+      const result = await db
+        .select()
+        .from(subcategories)
+        .where(eq(subcategories.categoryId, categoryId))
+        .orderBy(subcategories.name);
+      
+      console.log(`✅ Subcategorias encontradas: ${result.length}`);
+      return result;
+    } catch (error) {
+      console.error("Error fetching subcategories by category:", error);
       return [];
     }
   }

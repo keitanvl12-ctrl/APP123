@@ -63,7 +63,12 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
 
   // Fetch subcategories for selected category
   const { data: subcategories } = useQuery<Subcategory[]>({
-    queryKey: ["/api/subcategories", { categoryId: selectedCategoryId }],
+    queryKey: ["/api/subcategories", selectedCategoryId],
+    queryFn: async () => {
+      if (!selectedCategoryId) return [];
+      const response = await apiRequest(`/api/subcategories?categoryId=${selectedCategoryId}`, "GET");
+      return response.json();
+    },
     enabled: isOpen && !!selectedCategoryId,
   });
 
