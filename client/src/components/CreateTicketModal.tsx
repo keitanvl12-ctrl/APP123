@@ -434,6 +434,15 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 />
               </div>
 
+              {/* DEBUG INFO */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                <p><strong>Debug:</strong> Categoria selecionada: {selectedCategoryId || "Nenhuma"}</p>
+                <p><strong>Debug:</strong> Subcategorias encontradas: {subcategories?.length || 0}</p>
+                {subcategories?.map(sub => (
+                  <p key={sub.id} className="text-xs">- {sub.name}</p>
+                ))}
+              </div>
+
 
 
               {/* Campos Customizados - Nova arquitetura baseada em SUBCATEGORIAS */}
