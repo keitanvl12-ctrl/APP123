@@ -351,8 +351,10 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 />
               </div>
 
-              {/* Linha com Categoria e Subcategoria */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* TESTE VISUAL: Categoria e Subcategoria */}
+              <div className="p-4 bg-yellow-100 border-2 border-yellow-500 rounded">
+                <h3 className="text-lg font-bold text-black mb-4">🔧 TESTE: Categoria e Subcategoria</h3>
+                <div className="grid grid-cols-2 gap-4">
                 {/* Categoria */}
                 <FormField
                   control={form.control}
@@ -432,16 +434,10 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                     </FormItem>
                   )}
                 />
+                </div>
               </div>
 
-              {/* DEBUG INFO */}
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-                <p><strong>Debug:</strong> Categoria selecionada: {selectedCategoryId || "Nenhuma"}</p>
-                <p><strong>Debug:</strong> Subcategorias encontradas: {subcategories?.length || 0}</p>
-                {subcategories?.map(sub => (
-                  <p key={sub.id} className="text-xs">- {sub.name}</p>
-                ))}
-              </div>
+
 
 
 
