@@ -423,11 +423,11 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-gray-600">Categoria</label>
-                    <p className="text-sm text-gray-900">{ticket.category?.name || 'Não informada'}</p>
+                    <p className="text-sm text-gray-900">{ticket.categoryName || 'Não informada'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Subcategoria</label>
-                    <p className="text-sm text-gray-900">{ticket.subcategory?.name || 'Não informada'}</p>
+                    <p className="text-sm text-gray-900">{ticket.subcategoryName || 'Não informada'}</p>
                   </div>
                 </div>
 
@@ -438,7 +438,7 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Departamento Responsável</label>
-                    <p className="text-sm text-gray-900">{ticket.department?.name || 'TI'}</p>
+                    <p className="text-sm text-gray-900">{ticket.responsibleDepartment?.name || 'TI'}</p>
                   </div>
                 </div>
               </CardContent>
@@ -453,34 +453,46 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 mt-4">
-                {loading ? (
-                  <div className="text-center py-4">
-                    <p className="text-sm text-gray-600">Carregando campos customizados...</p>
-                  </div>
-                ) : customFields.length > 0 ? (
-                  <div className="space-y-4">
-                    {customFields.map((field, index) => (
-                      <div key={index} className="bg-white p-4 rounded-lg border border-blue-200">
-                        <label className="text-sm font-semibold text-blue-700 block mb-2">
-                          {field.customField?.name || `Campo ${index + 1}`}:
-                        </label>
-                        <div className="bg-blue-50 p-3 rounded border-l-4 border-blue-400">
-                          <p className="text-sm text-gray-900">
-                            {field.value || 'Não informado'}
-                          </p>
+                {(() => {
+                  // Extrair campos customizados do formData do ticket
+                  try {
+                    const formData = ticket.formData ? (typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData) : {};
+                    const customFields = formData.customFields || formData.originalRequestBody?.customFields || {};
+                    const customFieldEntries = Object.entries(customFields).filter(([_, value]) => value && value !== '');
+                    
+                    if (customFieldEntries.length === 0) {
+                      return (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-gray-600">Nenhum campo específico foi preenchido neste ticket.</p>
                         </div>
+                      );
+                    }
+                    
+                    return (
+                      <div className="space-y-4">
+                        {customFieldEntries.map(([fieldId, value], index) => (
+                          <div key={fieldId} className="bg-white p-4 rounded-lg border border-blue-200">
+                            <label className="text-sm font-semibold text-blue-700 block mb-2">
+                              Campo {index + 1}:
+                            </label>
+                            <div className="bg-blue-50 p-3 rounded border">
+                              <p className="text-sm text-blue-900 font-medium">
+                                {String(value)}
+                              </p>
+                            </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <AlertCircle className="w-12 h-12 text-blue-400 mx-auto mb-2" />
-                    <p className="text-sm text-blue-600 font-medium">Nenhum campo específico da subcategoria encontrado</p>
-                    <p className="text-xs text-blue-500 mt-1">Este ticket não possui campos customizados configurados</p>
-                  </div>
-                )}
-
-
+                        ))}
+                      </div>
+                    );
+                  } catch (error) {
+                    console.error("Erro ao processar campos customizados:", error);
+                    return (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-600">Erro ao carregar campos específicos.</p>
+                      </div>
+                    );
+                  }
+                })()}
               </CardContent>
             </Card>
 
