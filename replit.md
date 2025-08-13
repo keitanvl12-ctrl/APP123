@@ -11,6 +11,32 @@ Authentication: Real permissions system based on user's actual function/role in 
 
 # Recent Major Achievement
 
+## Conectividade Frontend-Backend - TOTALMENTE CORRIGIDA ✅
+**Data:** 13 de agosto de 2025
+
+A conectividade entre frontend e backend foi completamente restaurada e está operacional:
+
+### Problema Diagnosticado e Resolvido
+- **Issue Principal**: Conflitos entre múltiplas implementações do useAuth causando falha no envio de tokens JWT
+- **Sintomas**: Login funcionava mas APIs retornavam "No token provided in authorization header"
+- **Root Cause**: App.tsx tinha implementação própria de useAuth conflitando com hooks/useAuth.tsx
+
+### Correções Implementadas
+✅ **Remoção de código duplicado de autenticação no App.tsx**
+✅ **Uso consistente do AuthProvider e useAuth hook centralizado**  
+✅ **JWT tokens sendo enviados corretamente nos headers Authorization Bearer**
+✅ **Middleware de verificação JWT funcionando perfeitamente**
+✅ **Usuários admin com acesso automático a todas permissões**
+✅ **APIs retornando dados reais do PostgreSQL (8 tickets, 5 usuários)**
+
+### Testes de Conectividade Confirmados
+- Login: ✅ Autenticação bem-sucedida com JWT válido
+- API Tickets: ✅ Retornando 8 tickets do banco com SLA calculado
+- API Users: ✅ Retornando 5 usuários com roles corretos
+- Middleware: ✅ Permissões verificadas e aplicadas corretamente
+
+### Status: Frontend-Backend 100% Conectado e Operacional
+
 ## Sistema de Funções e Permissões - TOTALMENTE FUNCIONAL ✅
 **Data:** 12 de agosto de 2025
 
@@ -75,7 +101,7 @@ O sistema de funções e permissões está 100% funcional e operacional:
 - **Runtime**: Node.js with Express.js.
 - **Database ORM**: Drizzle ORM with PostgreSQL.
 - **API Design**: RESTful endpoints with consistent error handling.
-- **Authentication**: Session-based authentication with PostgreSQL session store, role-based access control (Colaborador, Supervisor, Administrador).
+- **Authentication**: JWT-based authentication with centralized AuthProvider, role-based access control (admin, supervisor, atendente, solicitante) with granular permission system.
 - **Real-time Updates**: WebSocket integration for instant notifications and data synchronization.
 
 ## Data Layer
