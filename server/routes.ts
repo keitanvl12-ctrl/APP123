@@ -916,6 +916,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create custom field value for a ticket
+  app.post("/api/tickets/:ticketId/custom-fields", async (req, res) => {
+    try {
+      const { ticketId } = req.params;
+      const { customFieldId, value } = req.body;
+
+      console.log("🔍 API: Creating custom field value for ticket:", ticketId, "field:", customFieldId, "value:", value);
+
+      // Check if the custom field value already exists
+      const existingValues = await storage.getCustomFieldValuesByTicket(ticketId);
+      const existingValue = existingValues.find(v => v.customFieldId === customFieldId);
+
+      let result;
+      if (existingValue) {
+        // Update existing value
+        result = await storage.updateCustomFieldValue(ticketId, customFieldId, value);
+        console.log("✅ Updated existing custom field value:", result);
+      } else {
+        // Create new value
+        const valueData = {
+          ticketId,
+          customFieldId,
+          value,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        result = await storage.createCustomFieldValue(valueData);
+        console.log("✅ Created new custom field value:", result);
+      }
+
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error creating/updating custom field value:", error);
+      res.status(500).json({ message: "Failed to create custom field value" });
+    }
+  });
+
   // Endpoint para notificações
   app.get('/api/notifications', async (req, res) => {
     try {

@@ -947,6 +947,53 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
+
+  async createCustomFieldValue(valueData: any): Promise<any> {
+    try {
+      console.log('🔍 Creating custom field value:', valueData);
+      const [value] = await db.insert(customFieldValues).values(valueData).returning();
+      return value;
+    } catch (error) {
+      console.error("Error creating custom field value:", error);
+      throw error;
+    }
+  }
+
+  async updateCustomFieldValue(ticketId: string, customFieldId: string, value: string): Promise<any> {
+    try {
+      const [updatedValue] = await db
+        .update(customFieldValues)
+        .set({ value, updatedAt: new Date() })
+        .where(
+          and(
+            eq(customFieldValues.ticketId, ticketId),
+            eq(customFieldValues.customFieldId, customFieldId)
+          )
+        )
+        .returning();
+      return updatedValue;
+    } catch (error) {
+      console.error("Error updating custom field value:", error);
+      throw error;
+    }
+  }
+
+  async deleteCustomFieldValue(ticketId: string, customFieldId: string): Promise<boolean> {
+    try {
+      await db
+        .delete(customFieldValues)
+        .where(
+          and(
+            eq(customFieldValues.ticketId, ticketId),
+            eq(customFieldValues.customFieldId, customFieldId)
+          )
+        );
+      return true;
+    } catch (error) {
+      console.error("Error deleting custom field value:", error);
+      return false;
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
