@@ -258,7 +258,7 @@ export class DatabaseStorage implements IStorage {
           slaStatus = 'at_risk';
         }
         
-        // Calculate remaining time
+        // Calculate total hours for remaining time calculation
         const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
         
         // Calculate deadline
