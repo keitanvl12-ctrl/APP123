@@ -155,12 +155,14 @@ export default function RoleManagement() {
     setRoleName(role.name);
     setRoleDescription(role.description || '');
     
-    // Buscar permissões da função
+    // Buscar permissões da função - use the endpoint that returns role permissions
     try {
-      const roleDetails = await apiRequest(`/api/permissions/roles/${role.id}`);
-      setSelectedPermissions(roleDetails.permissions?.map((p: SystemPermission) => p.code) || []);
+      const rolePermissions = await apiRequest(`/api/permissions/roles/${role.id}/permissions`);
+      // Map the returned permissions to their codes
+      setSelectedPermissions(rolePermissions?.map((p: SystemPermission) => p.code) || []);
     } catch (error) {
       console.error('Erro ao buscar detalhes da função:', error);
+      setSelectedPermissions([]);
     }
   };
 

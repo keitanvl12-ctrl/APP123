@@ -208,7 +208,12 @@ router.put('/roles/:roleId', async (req, res) => {
 
         for (const permissionId of permissions) {
           // Map frontend ID to database ID
-          const dbPermissionId = permissionMap[permissionId] || permissionId;
+          const dbPermissionId = permissionMap[permissionId];
+          
+          if (!dbPermissionId) {
+            console.log(`❌ Permission not found: ${permissionId}`);
+            continue; // Skip invalid permissions instead of failing
+          }
           
           console.log(`📝 Mapping ${permissionId} -> ${dbPermissionId}`);
           
