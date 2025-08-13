@@ -69,8 +69,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
 
-    // USAR APENAS as permissões reais do banco de dados vindas do login
-    if (user.permissions && Array.isArray(user.permissions)) {
+    // Para usuários admin/administrador, dar acesso total temporário
+    const userRole = user.role || user.hierarchy || '';
+    if (userRole === 'admin' || userRole === 'administrador') {
+      return true; // Admin tem acesso a tudo
+    }
+
+    // USAR as permissões reais do banco de dados vindas do login
+    if (user.permissions && Array.isArray(user.permissions) && user.permissions.length > 0) {
       // Direct permission check - usar exatamente como está no banco
       if (user.permissions.includes(permission)) return true;
       
@@ -80,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
     }
 
-    // Se não tem permissões do banco, negar acesso
+    // Para outros usuários sem permissões específicas, negar acesso
     return false;
   };
 
