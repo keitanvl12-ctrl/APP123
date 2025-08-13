@@ -26,7 +26,6 @@ export default function TicketTrendsChart({ days, filters }: TicketTrendsChartPr
 
   const { data: trendData, isLoading } = useQuery<TrendData[]>({
     queryKey: ["/api/dashboard/trends", queryParams],
-    queryFn: () => fetch(`/api/dashboard/trends?${queryParams}`).then(res => res.json()),
   });
 
   if (isLoading) {

@@ -30,12 +30,6 @@ export default function PriorityBreakdown({ filters }: PriorityBreakdownProps) {
 
   const { data: priorityStats, isLoading } = useQuery<PriorityStats>({
     queryKey: ["/api/dashboard/priority-stats", queryParams],
-    queryFn: async () => {
-      const url = `/api/dashboard/priority-stats${queryParams ? `?${queryParams}` : ''}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch priority stats');
-      return response.json();
-    }
   });
 
   if (isLoading) {

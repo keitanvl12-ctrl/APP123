@@ -132,12 +132,18 @@ export default function UserDetailsPanel({
         throw new Error('ID do usuário não encontrado');
       }
 
-      // Fazer chamada para API de atualização de usuário  
+      // Fazer chamada para API de atualização de usuário usando apiRequest
+      const token = localStorage.getItem('authToken');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`/api/users/${userIdToUpdate}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,

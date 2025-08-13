@@ -30,22 +30,12 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ isOpen, onClose
   // Buscar notificações do usuário logado
   const { data: userNotifications } = useQuery({
     queryKey: ['/api/notifications', currentUser.id],
-    queryFn: async () => {
-      const response = await fetch(`/api/notifications?userId=${currentUser.id}`);
-      return response.json();
-    },
     refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
 
   // Buscar tickets atribuídos ao usuário para gerar notificações
   const { data: assignedTickets = [] } = useQuery({
-    queryKey: ['/api/tickets/assigned', currentUser.id],
-    queryFn: async () => {
-      const response = await fetch(`/api/tickets?assignedTo=${currentUser.id}&status=open`);
-      if (!response.ok) return [];
-      const data = await response.json();
-      return Array.isArray(data) ? data : [];
-    },
+    queryKey: ['/api/tickets', { assignedTo: currentUser.id, status: 'open' }],
     refetchInterval: 60000, // Atualizar a cada minuto
   });
 
@@ -228,11 +218,6 @@ export const useNotifications = () => {
 
   const { data: notifications = [], refetch } = useQuery({
     queryKey: ['/api/notifications', currentUser.id],
-    queryFn: async () => {
-      const response = await fetch(`/api/notifications?userId=${currentUser.id}`);
-      if (!response.ok) return [];
-      return response.json();
-    },
     refetchInterval: 30000,
   });
 
