@@ -154,11 +154,17 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
               .filter(([_, value]) => value && value !== '')
               .map(([fieldId, value]) => {
                 const field = allFields.find((f: any) => f.id === fieldId);
-                return {
-                  customField: field || { id: fieldId, name: `Campo desconhecido` },
-                  value: String(value)
-                };
-              });
+                if (field) {
+                  return {
+                    customField: field,
+                    value: String(value)
+                  };
+                } else {
+                  console.warn(`⚠️ Campo não encontrado no banco: ${fieldId}, pulando...`);
+                  return null;
+                }
+              })
+              .filter(field => field !== null); // Remove campos não encontrados
             
             console.log("✅ Campos mapeados via fallback:", mappedFields);
             setCustomFields(mappedFields);
@@ -187,11 +193,13 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                 const formData = ticket.formData ? (typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData) : {};
                 const customFieldsData = formData.customFields || formData.originalRequestBody?.customFields || {};
                 
-                // Mapear os campos com seus valores
-                const fieldsWithValues = fields.map(field => ({
-                  customField: field,
-                  value: customFieldsData[field.id] || 'Não informado'
-                }));
+                // Mapear apenas os campos que têm valores preenchidos
+                const fieldsWithValues = fields
+                  .map(field => ({
+                    customField: field,
+                    value: customFieldsData[field.id]
+                  }))
+                  .filter(item => item.value && item.value !== '' && item.value !== null && item.value !== undefined);
                 
                 console.log("✅ Campos mapeados com valores do formData:", fieldsWithValues);
                 setCustomFields(fieldsWithValues);
@@ -502,46 +510,11 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
                       </div>
                     ))}
                   </div>
-                ) : (() => {
-                  // Fallback: tentar extrair do formData se não encontrou campos na subcategoria
-                  try {
-                    const formData = ticket.formData ? (typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData) : {};
-                    const customFields = formData.customFields || formData.originalRequestBody?.customFields || {};
-                    const customFieldEntries = Object.entries(customFields).filter(([_, value]) => value && value !== '');
-                    
-                    if (customFieldEntries.length === 0) {
-                      return (
-                        <div className="text-center py-4">
-                          <p className="text-sm text-gray-600">Nenhum campo específico foi preenchido neste ticket.</p>
-                        </div>
-                      );
-                    }
-                    
-                    return (
-                      <div className="space-y-4">
-                        {customFieldEntries.map(([fieldId, value], index) => (
-                          <div key={fieldId} className="bg-white p-4 rounded-lg border border-blue-200">
-                            <label className="text-sm font-semibold text-blue-700 block mb-2">
-                              Pergunta {index + 1}:
-                            </label>
-                            <div className="bg-blue-50 p-3 rounded border">
-                              <p className="text-sm text-blue-900 font-medium">
-                                {String(value)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  } catch (error) {
-                    console.error("Erro ao processar campos customizados:", error);
-                    return (
-                      <div className="text-center py-4">
-                        <p className="text-sm text-gray-600">Nenhum campo específico encontrado para este ticket.</p>
-                      </div>
-                    );
-                  }
-                })()}
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-600">Nenhum campo específico foi preenchido neste ticket.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
