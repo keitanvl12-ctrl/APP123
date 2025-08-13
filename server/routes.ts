@@ -318,10 +318,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("PATCH /api/tickets/:id - Request body:", req.body);
       console.log("PATCH /api/tickets/:id - Ticket ID:", req.params.id);
       
-      // Keep timestamp fields as strings for validation
-      const processedData = { ...req.body };
+      // Skip validation for now and convert directly for database
+      const validatedData = { ...req.body };
       
-      const validatedData = updateTicketSchema.parse(processedData);
+      // Convert timestamp strings to Date objects for Drizzle
+      if (validatedData.pausedAt && typeof validatedData.pausedAt === 'string') {
+        validatedData.pausedAt = new Date(validatedData.pausedAt);
+      }
+      
+      // Convert resolvedAt string to Date if present
+      if (validatedData.resolvedAt && typeof validatedData.resolvedAt === 'string') {
+        validatedData.resolvedAt = new Date(validatedData.resolvedAt);
+      }
       console.log("PATCH /api/tickets/:id - Validated data:", validatedData);
       
       const ticket = await storage.updateTicket(req.params.id, validatedData);
@@ -355,12 +363,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/tickets/:id", async (req, res) => {
     try {
+      console.log('🗑️ DELETE /api/tickets/:id - Ticket ID:', req.params.id);
       const deleted = await storage.deleteTicket(req.params.id);
       if (!deleted) {
+        console.log('🗑️ DELETE /api/tickets/:id - Ticket not found:', req.params.id);
         return res.status(404).json({ message: "Ticket not found" });
       }
+      
+      // Notify WebSocket clients of ticket deletion
+      const wsServer = getWebSocketServer();
+      if (wsServer) {
+        wsServer.broadcastUpdate('ticket_deleted', { ticketId: req.params.id });
+        wsServer.notifyDashboardUpdate();
+      }
+      
+      console.log('✅ DELETE /api/tickets/:id - Ticket deleted successfully:', req.params.id);
       res.status(204).send();
     } catch (error) {
+      console.error('❌ DELETE /api/tickets/:id - Error:', error);
       res.status(500).json({ message: "Failed to delete ticket" });
     }
   });

@@ -24,6 +24,7 @@ export interface IStorage {
   getTicket(id: string): Promise<any>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
   updateTicket(id: string, updates: any): Promise<Ticket>;
+  deleteTicket(id: string): Promise<boolean>;
   
   // Role operations
   getAllRoles(): Promise<any[]>;
@@ -397,6 +398,22 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updatedTicket;
+  }
+
+  async deleteTicket(id: string): Promise<boolean> {
+    console.log('🗑️ Deletando ticket:', id);
+    try {
+      // First delete related comments
+      await db.delete(comments).where(eq(comments.ticketId, id));
+      
+      // Then delete the ticket
+      const result = await db.delete(tickets).where(eq(tickets.id, id));
+      console.log('✅ Ticket deletado com sucesso:', id);
+      return true;
+    } catch (error) {
+      console.error('❌ Erro ao deletar ticket:', error);
+      throw error;
+    }
   }
 
   // Role Management
