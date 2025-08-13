@@ -949,7 +949,11 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log(`🗑️ Tentando deletar campo customizado: ${id}`);
       
-      // Primeiro, verificar se o campo existe
+      // Primeiro, listar todos os campos para debug
+      const allFields = await db.select({ id: customFields.id, name: customFields.name }).from(customFields);
+      console.log(`🔍 Campos existentes no banco:`, allFields);
+      
+      // Verificar se o campo existe
       const existingField = await db
         .select()
         .from(customFields)
@@ -958,21 +962,24 @@ export class DatabaseStorage implements IStorage {
       
       if (existingField.length === 0) {
         console.log(`❌ Campo customizado não encontrado: ${id}`);
-        return false;
+        console.log(`🔍 Campos disponíveis:`, allFields.map(f => f.id));
+        throw new Error(`Campo não encontrado com ID: ${id}`);
       }
       
+      console.log(`✅ Campo encontrado:`, existingField[0]);
+      
       // Deletar valores associados primeiro
-      await db.delete(customFieldValues).where(eq(customFieldValues.customFieldId, id));
-      console.log(`🗑️ Valores do campo deletados: ${id}`);
+      const deletedValues = await db.delete(customFieldValues).where(eq(customFieldValues.customFieldId, id));
+      console.log(`🗑️ Valores do campo deletados:`, deletedValues);
       
       // Depois deletar o campo
-      await db.delete(customFields).where(eq(customFields.id, id));
-      console.log(`✅ Campo customizado deletado: ${id}`);
+      const deletedField = await db.delete(customFields).where(eq(customFields.id, id));
+      console.log(`✅ Campo customizado deletado:`, deletedField);
       
       return true;
     } catch (error) {
       console.error(`❌ Erro ao deletar campo customizado ${id}:`, error);
-      return false;
+      throw error;
     }
   }
 

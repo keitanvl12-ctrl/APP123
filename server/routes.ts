@@ -1476,18 +1476,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/custom-fields/:id", async (req, res) => {
     try {
       console.log("🗑️ Deletando campo customizado:", req.params.id);
-      const deleted = await storage.deleteCustomField(req.params.id);
-      
-      if (deleted) {
-        console.log("✅ Campo customizado deletado com sucesso");
-        res.status(204).send();
-      } else {
-        console.log("❌ Campo customizado não encontrado");
-        res.status(404).json({ message: "Custom field not found" });
-      }
+      const result = await storage.deleteCustomField(req.params.id);
+      console.log("✅ Campo customizado deletado com sucesso");
+      res.json({ message: "Campo customizado deletado com sucesso" });
     } catch (error) {
       console.error("❌ Erro ao deletar campo customizado:", error);
-      res.status(500).json({ message: "Failed to delete custom field", error: error.message });
+      res.status(404).json({ message: error.message || "Campo não encontrado" });
     }
   });
 
