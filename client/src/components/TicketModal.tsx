@@ -138,15 +138,15 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       setLoading(true);
       console.log("🔍 Buscando campos customizados para:", ticket.ticketNumber);
       
-      // Buscar APENAS campos configurados em Administração (não valores salvos)
-      fetch(`/api/custom-fields/category/${ticket.categoryId}`, {
+      // Buscar TODOS campos configurados em Administração (não categoria específica)
+      fetch(`/api/custom-fields`, {
         credentials: 'include'
       })
         .then(res => res.json())
-        .then(categoryFields => {
-          console.log("✅ Campos configurados em Administração:", categoryFields);
-          // Retornar apenas os campos como vazios/limpros para edição
-          const emptyFields = categoryFields.map(field => ({
+        .then(allFields => {
+          console.log("✅ Todos campos configurados em Administração:", allFields);
+          // Retornar apenas os campos como vazios para edição
+          const emptyFields = allFields.map(field => ({
             ...field,
             value: '', // Sempre vazio
             valueId: null

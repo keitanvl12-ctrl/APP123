@@ -258,6 +258,9 @@ export class DatabaseStorage implements IStorage {
           slaStatus = 'at_risk';
         }
         
+        // Calculate remaining time
+        const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+        
         // Calculate deadline
         const deadline = new Date(createdAt.getTime() + (slaHours * 60 * 60 * 1000));
         
@@ -291,6 +294,8 @@ export class DatabaseStorage implements IStorage {
           const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
           progressPercent = Math.min(100, (totalHours / 4) * 100);
         }
+        
+        const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
         
         return {
           ...ticket,
@@ -431,10 +436,13 @@ export class DatabaseStorage implements IStorage {
   async deleteTicket(id: string): Promise<boolean> {
     console.log('🗑️ Deletando ticket:', id);
     try {
-      // First delete related comments
+      // First delete custom field values
+      await db.delete(customFieldValues).where(eq(customFieldValues.ticketId, id));
+      
+      // Then delete related comments
       await db.delete(comments).where(eq(comments.ticketId, id));
       
-      // Then delete the ticket
+      // Finally delete the ticket
       const result = await db.delete(tickets).where(eq(tickets.id, id));
       console.log('✅ Ticket deletado com sucesso:', id);
       return true;
