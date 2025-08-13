@@ -3,25 +3,6 @@ import { storage } from '../storage';
 import { z } from 'zod';
 import { pool } from '../db';
 
-// Get permissions for a role
-async function getRolePermissions(roleId: string) {
-  const result = await pool.query(`
-    SELECT sp.id, sp.code, sp.name, sp.description, sp.category 
-    FROM system_permissions sp
-    INNER JOIN role_permissions rp ON sp.id = rp.permission_id
-    WHERE rp.role_id = $1
-    ORDER BY sp.category, sp.name
-  `, [roleId]);
-  
-  return result.rows.map(row => ({
-    id: row.code, // Use code as ID for frontend
-    code: row.code,
-    name: row.name,
-    description: row.description,
-    category: row.category
-  }));
-}
-
 const router = Router();
 
 // Buscar permissões do usuário atual
@@ -71,37 +52,6 @@ router.get('/roles/:roleId', async (req, res) => {
     res.json(roleDetails);
   } catch (error) {
     console.error('Erro ao buscar detalhes da função:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
-  }
-});
-
-// Get permissions for a role
-router.get('/roles/:roleId/permissions', async (req, res) => {
-  try {
-    const { roleId } = req.params;
-    console.log(`🔍 Getting permissions for role: ${roleId}`);
-    
-    // Get role permissions using direct SQL query
-    const result = await pool.query(`
-      SELECT sp.id, sp.code, sp.name, sp.description, sp.category 
-      FROM system_permissions sp
-      INNER JOIN role_permissions rp ON sp.id = rp.permission_id
-      WHERE rp.role_id = $1
-      ORDER BY sp.category, sp.name
-    `, [roleId]);
-    
-    const permissions = result.rows.map(row => ({
-      id: row.code, // Use code as ID for frontend
-      code: row.code,
-      name: row.name,
-      description: row.description,
-      category: row.category
-    }));
-    
-    console.log(`✅ Found ${permissions.length} permissions for role ${roleId}:`, permissions.map(p => p.code));
-    res.json(permissions);
-  } catch (error) {
-    console.error('Error getting role permissions:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
@@ -367,22 +317,6 @@ router.put('/roles/:roleId', async (req, res) => {
       return res.status(400).json({ message: 'Dados inválidos', errors: error.errors });
     }
     console.error('Erro ao atualizar função:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
-  }
-});
-
-// Get permissions for a specific role
-router.get('/roles/:roleId/permissions', async (req, res) => {
-  try {
-    const { roleId } = req.params;
-    console.log(`🔍 Getting permissions for role: ${roleId}`);
-    
-    const permissions = await getRolePermissions(roleId);
-    
-    console.log(`✅ Found ${permissions.length} permissions for role ${roleId}:`, permissions.slice(0, 5).map(p => p.code));
-    res.json(permissions);
-  } catch (error) {
-    console.error('Error getting role permissions:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });

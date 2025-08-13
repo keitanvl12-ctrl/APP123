@@ -6,7 +6,6 @@ export interface AuthenticatedUser {
   email: string;
   role: string;
   hierarchy: string;
-  id?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -14,52 +13,19 @@ export interface AuthenticatedRequest extends Request {
 }
 
 // Middleware to verify JWT token and extract user info
-export const verifyToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const verifyToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
 
   if (!token) {
-    console.log('❌ No token provided in authorization header');
-    return res.status(401).json({ message: 'Usuário não autenticado' });
+    return res.status(401).json({ message: 'Token não fornecido' });
   }
 
   try {
-    console.log('🔐 Verifying JWT token...');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
-    console.log('✅ JWT decoded:', { userId: decoded.userId, email: decoded.email, role: decoded.role });
-    
-    // Get user details from database to ensure user still exists and is active
-    const { storage } = await import('../storage');
-    const user = await storage.getUser(decoded.userId);
-    
-    if (!user) {
-      console.log('❌ User not found in database:', decoded.userId);
-      return res.status(401).json({ message: 'Usuário não autenticado' });
-    }
-    
-    if (!user.isActive) {
-      console.log('❌ User is not active:', decoded.userId);
-      return res.status(401).json({ message: 'Usuário não autenticado' });
-    }
-    
-    if (user.isBlocked) {
-      console.log('❌ User is blocked:', decoded.userId);
-      return res.status(401).json({ message: 'Usuário não autenticado' });
-    }
-
-    console.log('✅ User authenticated successfully:', user.name, '(' + user.role + ')');
-
-    req.user = {
-      userId: user.id,
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      hierarchy: user.role
-    };
-    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as AuthenticatedUser;
+    req.user = decoded;
     next();
   } catch (error) {
-    console.error('❌ JWT verification error:', error);
-    return res.status(401).json({ message: 'Usuário não autenticado' });
+    return res.status(401).json({ message: 'Token inválido' });
   }
 };
 

@@ -19,19 +19,11 @@ export function requirePermission(requiredPermission: string): RequestHandler {
       console.log(`🔐 Checking permission '${requiredPermission}' for user ${userId}`);
       
       // Obter permissões do usuário do banco
-      const userPermissionsData = await storage.getUserPermissions(userId);
-      console.log(`👤 User ${userId} permissions:`, userPermissionsData);
-      
-      // Admin users have all permissions automatically
-      if (req.user.role === 'admin' || req.user.role === 'administrador' || userPermissionsData.roleId === 'administrador') {
-        console.log(`✅ Admin user has all permissions`);
-        next();
-        return;
-      }
+      const userPermissions = await storage.getUserPermissions(userId);
+      console.log(`👤 User ${userId} permissions:`, userPermissions);
       
       // Verificar se o usuário tem a permissão necessária
-      const userPermissions = userPermissionsData.permissions || [];
-      const hasPermission = Array.isArray(userPermissions) ? userPermissions.includes(requiredPermission) : false;
+      const hasPermission = userPermissions.includes(requiredPermission);
       
       if (!hasPermission) {
         console.log(`❌ Permission denied: User ${userId} lacks '${requiredPermission}'`);
@@ -66,19 +58,11 @@ export function requireAnyPermission(permissions: string[]): RequestHandler {
       const userId = req.user.userId;
       console.log(`🔐 Checking any of permissions [${permissions.join(', ')}] for user ${userId}`);
       
-      // Admin users have all permissions automatically
-      if (req.user.role === 'admin' || req.user.role === 'administrador') {
-        console.log(`✅ Admin user has all permissions`);
-        next();
-        return;
-      }
-      
-      const userPermissionsData = await storage.getUserPermissions(userId);
-      console.log(`👤 User ${userId} permissions:`, userPermissionsData);
+      const userPermissions = await storage.getUserPermissions(userId);
+      console.log(`👤 User ${userId} permissions:`, userPermissions);
       
       // Verificar se o usuário tem pelo menos uma das permissões
-      const userPermissions = userPermissionsData.permissions || [];
-      const hasAnyPermission = Array.isArray(userPermissions) && permissions.some(permission => 
+      const hasAnyPermission = permissions.some(permission => 
         userPermissions.includes(permission)
       );
       

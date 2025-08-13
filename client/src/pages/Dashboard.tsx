@@ -51,6 +51,12 @@ export default function Dashboard() {
   // Dashboard stats with real-time updates
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats", queryParams],
+    queryFn: async () => {
+      const url = `/api/dashboard/stats${queryParams ? `?${queryParams}` : ''}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      return response.json();
+    },
     refetchInterval: 10000, // Refresh every 10 seconds as backup
     refetchIntervalInBackground: true,
     staleTime: 0, // Always consider data stale for immediate updates
