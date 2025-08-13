@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { X, Upload } from "lucide-react";
 import { insertTicketSchema } from "@shared/schema";
-import type { InsertTicket, User, Department, Category } from "@shared/schema";
+import type { InsertTicket, User, Department, Category, Subcategory } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -38,6 +38,7 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>("");
 
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/users/assignable"],
@@ -60,10 +61,16 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
     enabled: isOpen && (!selectedDepartment || !categories),
   });
 
-  // Fetch custom fields for selected category
-  const { data: customFields = [] } = useQuery<CustomField[]>({
-    queryKey: ["/api/custom-fields/category", selectedCategoryId],
+  // Fetch subcategories for selected category
+  const { data: subcategories } = useQuery<Subcategory[]>({
+    queryKey: ["/api/subcategories", { categoryId: selectedCategoryId }],
     enabled: isOpen && !!selectedCategoryId,
+  });
+
+  // Fetch custom fields for selected subcategory (não mais para categoria)
+  const { data: customFields = [] } = useQuery<CustomField[]>({
+    queryKey: ["/api/custom-fields/subcategory", selectedSubcategoryId],
+    enabled: isOpen && !!selectedSubcategoryId,
   });
 
   const form = useForm<InsertTicket>({
@@ -148,6 +155,7 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
       setSelectedFiles([]);
       setSelectedDepartment("");
       setSelectedCategoryId("");
+      setSelectedSubcategoryId("");
       onTicketCreated?.();
       onClose();
     },
@@ -174,6 +182,7 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
     setSelectedFiles([]);
     setSelectedDepartment("");
     setSelectedCategoryId("");
+    setSelectedSubcategoryId("");
     onClose();
   };
 
@@ -263,8 +272,10 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                         onValueChange={(value) => {
                           field.onChange(value);
                           setSelectedDepartment(value);
-                          form.setValue("category", ""); // Reset category when department changes
+                          form.setValue("categoryId", ""); // Reset category when department changes
+                          form.setValue("subcategoryId", ""); // Reset subcategory too
                           setSelectedCategoryId("");
+                          setSelectedSubcategoryId("");
                         }} 
                         value={field.value || ""}
                       >
@@ -315,7 +326,7 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
               {/* Categoria */}
               <FormField
                 control={form.control}
-                name="category"
+                name="categoryId"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoria *</FormLabel>
@@ -323,6 +334,9 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                       onValueChange={(value) => {
                         field.onChange(value);
                         setSelectedCategoryId(value);
+                        // Reset subcategoria quando categoria muda
+                        form.setValue("subcategoryId", "");
+                        setSelectedSubcategoryId("");
                       }} 
                       value={field.value || ""}
                       disabled={false}
@@ -352,47 +366,111 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                 )}
               />
 
-              {/* DEBUG - Sempre mostrar para testar */}
-              <div className="mt-4 p-4 border-2 border-red-500 bg-red-50 dark:bg-red-900/20" style={{ backgroundColor: 'red', color: 'white', fontSize: '16px', fontWeight: 'bold' }}>
-                <h4 className="text-red-700 font-bold" style={{ color: 'white' }}>🚨 DEBUG INFO - TESTE 🚨</h4>
-                <p style={{ color: 'white' }}>Selected Department: {selectedDepartment || "NONE"}</p>
-                <p style={{ color: 'white' }}>Selected Category ID: {selectedCategoryId || "NONE"}</p>
+              {/* Subcategoria - Nova funcionalidade! */}
+              {selectedCategoryId && (
+                <FormField
+                  control={form.control}
+                  name="subcategoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subcategoria *</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedSubcategoryId(value);
+                        }} 
+                        value={field.value || ""}
+                        disabled={!selectedCategoryId}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="focus:ring-primary focus:border-primary">
+                            <SelectValue 
+                              placeholder="Selecione a subcategoria" 
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {subcategories?.map((subcategory) => (
+                            <SelectItem key={subcategory.id} value={subcategory.id}>
+                              {subcategory.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                      {selectedCategoryId && !subcategories?.length && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Nenhuma subcategoria encontrada para esta categoria
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* DEBUG - Nova arquitetura com subcategorias */}
+              <div className="mt-4 p-4 border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20" style={{ backgroundColor: 'blue', color: 'white', fontSize: '16px', fontWeight: 'bold' }}>
+                <h4 className="text-blue-700 font-bold" style={{ color: 'white' }}>🚀 NOVA ARQUITETURA - SUBCATEGORIAS 🚀</h4>
+                <p style={{ color: 'white' }}>Department: {selectedDepartment || "NONE"}</p>
+                <p style={{ color: 'white' }}>Category ID: {selectedCategoryId || "NONE"}</p>
+                <p style={{ color: 'white' }}>Subcategory ID: {selectedSubcategoryId || "NONE"}</p>
+                <p style={{ color: 'white' }}>Subcategories Count: {subcategories?.length || 0}</p>
                 <p style={{ color: 'white' }}>Custom Fields Count: {customFields?.length || 0}</p>
-                <p style={{ color: 'white', fontSize: '12px' }}>Custom Fields: {JSON.stringify(customFields, null, 2)}</p>
-                <p style={{ color: 'yellow', fontWeight: 'bold' }}>Modal está funcionando: SIM</p>
+                <p style={{ color: 'yellow', fontWeight: 'bold' }}>Estrutura: Departamento → Categoria → Subcategoria → Campos</p>
               </div>
 
-              {/* TESTE - Força mostrar campos */}
-              <div className="mt-4 p-4 bg-green-100 border-2 border-green-500">
-                <h4 className="text-green-700 font-bold">TESTE FORÇADO - Campos de Bug de Sistema:</h4>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium">Passos para Reproduzir *</Label>
-                    <Textarea placeholder="Descreva os passos detalhados para reproduzir o bug" rows={3} />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Versão do Sistema *</Label>
-                    <Input placeholder="Ex: v2.1.0" />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Navegador</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o navegador" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="chrome">Chrome</SelectItem>
-                        <SelectItem value="firefox">Firefox</SelectItem>
-                        <SelectItem value="safari">Safari</SelectItem>
-                        <SelectItem value="edge">Edge</SelectItem>
-                      </SelectContent>
-                    </Select>
+              {/* Campos Customizados - Nova arquitetura baseada em SUBCATEGORIAS */}
+              {selectedSubcategoryId && customFields && customFields.length > 0 && (
+                <div className="mt-4 p-4 bg-green-100 border-2 border-green-500 dark:bg-green-900/20">
+                  <h4 className="text-green-700 font-bold dark:text-green-300 mb-3">
+                    📝 Campos Específicos da Subcategoria
+                  </h4>
+                  <div className="space-y-4">
+                    {customFields
+                      .sort((a, b) => a.order - b.order)
+                      .map((field) => (
+                        <div key={field.id}>
+                          <Label htmlFor={`custom-${field.id}`}>
+                            {field.name} {field.required && '*'}
+                          </Label>
+                          {field.type === 'select' ? (
+                            <Select>
+                              <SelectTrigger id={`custom-${field.id}`}>
+                                <SelectValue placeholder={field.placeholder || `Selecione ${field.name}`} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {field.options?.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : field.type === 'textarea' ? (
+                            <Textarea
+                              id={`custom-${field.id}`}
+                              placeholder={field.placeholder || `Digite ${field.name}`}
+                              rows={3}
+                              required={field.required}
+                            />
+                          ) : (
+                            <Input
+                              id={`custom-${field.id}`}
+                              type={field.type === 'email' ? 'email' : 
+                                    field.type === 'phone' ? 'tel' : 
+                                    field.type === 'number' ? 'number' : 'text'}
+                              placeholder={field.placeholder || `Digite ${field.name}`}
+                              required={field.required}
+                            />
+                          )}
+                        </div>
+                      ))}
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Campos Customizados - Aparece quando categoria é selecionada */}
-              {selectedCategoryId && customFields && customFields.length > 0 && (
+              {/* Campos Customizados Antigos - Removidos, agora baseados em subcategoria */}
+              {false && selectedCategoryId && customFields && customFields.length > 0 && (
                 <div className="mt-4 space-y-4 border-t pt-4">
                   <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     Informações Específicas da Categoria

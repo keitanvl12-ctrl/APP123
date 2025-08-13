@@ -39,7 +39,8 @@ export const tickets = pgTable("tickets", {
   description: text("description").notNull(),
   status: text("status").notNull().default("open"), // open, in_progress, resolved, closed
   priority: text("priority").notNull().default("medium"), // low, medium, high, critical
-  category: text("category"), // Nome da categoria selecionada
+  categoryId: varchar("category_id").references(() => categories.id), // ID da categoria
+  subcategoryId: varchar("subcategory_id").references(() => subcategories.id), // ID da subcategoria
   tags: text("tags").array(), // Array de tags para categorização adicional
   // Informações detalhadas do solicitante
   requesterName: text("requester_name"), // Nome completo do solicitante
@@ -84,6 +85,18 @@ export const categories = pgTable("categories", {
   description: text("description"),
   departmentId: varchar("department_id").references(() => departments.id),
   slaHours: integer("sla_hours").default(24), // SLA deadline in hours
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Subcategories table - nova estrutura hierárquica
+export const subcategories = pgTable("subcategories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  categoryId: varchar("category_id").references(() => categories.id, { onDelete: 'cascade' }).notNull(),
+  departmentId: varchar("department_id").references(() => departments.id),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -143,10 +156,10 @@ export const slaConfig = pgTable("sla_config", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Custom Fields table - fields specific to categories AND departments
+// Custom Fields table - agora vinculados à subcategoria
 export const customFields = pgTable("custom_fields", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  categoryId: varchar("category_id").references(() => categories.id).notNull(),
+  subcategoryId: varchar("subcategory_id").references(() => subcategories.id, { onDelete: 'cascade' }).notNull(),
   departmentId: varchar("department_id").references(() => departments.id).notNull(), // Departamento que atende
   name: text("name").notNull(), // Nome do campo (ex: "Número do Patrimônio", "Setor do Equipamento")
   type: text("type").notNull().default("text"), // text, select, number, email, phone, date, checkbox
@@ -201,11 +214,12 @@ export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues
   createdAt: true,
 });
 
-// Export types for custom fields
-export type CustomField = typeof customFields.$inferSelect;
-export type InsertCustomField = typeof insertCustomFieldSchema._type;
-export type CustomFieldValue = typeof customFieldValues.$inferSelect;
-export type InsertCustomFieldValue = typeof insertCustomFieldValueSchema._type;
+// Schema para subcategorias
+export const insertSubcategorySchema = createInsertSchema(subcategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 export const insertCommentSchema = createInsertSchema(comments).omit({
   id: true,
@@ -264,6 +278,7 @@ export type Ticket = typeof tickets.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
 export type Category = typeof categories.$inferSelect;
+export type Subcategory = typeof subcategories.$inferSelect;
 export type StatusConfig = typeof statusConfig.$inferSelect;
 export type PriorityConfig = typeof priorityConfig.$inferSelect;
 export type SlaRule = typeof slaRules.$inferSelect;
@@ -282,6 +297,7 @@ export type InsertTicket = z.infer<typeof insertTicketSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
+export type InsertSubcategory = z.infer<typeof insertSubcategorySchema>;
 export type InsertStatusConfig = z.infer<typeof insertStatusConfigSchema>;
 export type InsertPriorityConfig = z.infer<typeof insertPriorityConfigSchema>;
 export type InsertSlaRule = z.infer<typeof insertSlaRuleSchema>;

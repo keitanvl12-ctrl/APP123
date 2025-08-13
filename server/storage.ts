@@ -3,9 +3,10 @@ import { eq, and, desc, or, sql, count, asc, like } from "drizzle-orm";
 import { 
   users, tickets, comments, departments, attachments,
   systemRoles, systemPermissions, rolePermissions,
-  categories, customFields, customFieldValues,
+  categories, subcategories, customFields, customFieldValues,
   statusConfig, priorityConfig, slaConfig, slaRules,
-  type User, type InsertUser, type Ticket, type InsertTicket
+  type User, type InsertUser, type Ticket, type InsertTicket,
+  type Subcategory, type InsertSubcategory
 } from "@shared/schema";
 import { calculateSLA } from "./slaCalculator";
 
@@ -43,6 +44,13 @@ export interface IStorage {
   getAssignableUsers(): Promise<any[]>;
   createComment(comment: any): Promise<any>;
   getAllCategories(): Promise<any[]>;
+  
+  // Subcategory operations
+  getAllSubcategories(): Promise<Subcategory[]>;
+  getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]>;
+  createSubcategory(subcategory: InsertSubcategory): Promise<Subcategory>;
+  updateSubcategory(id: string, updates: Partial<Subcategory>): Promise<Subcategory>;
+  deleteSubcategory(id: string): Promise<boolean>;
   getAllStatusConfig(): Promise<any[]>;
   getAllPriorityConfig(): Promise<any[]>;
   getAllSlaConfig(): Promise<any[]>;
@@ -1043,6 +1051,85 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error deleting custom field value:", error);
       return false;
+    }
+  }
+
+  // Subcategory operations implementation
+  async getAllSubcategories(): Promise<Subcategory[]> {
+    try {
+      const allSubcategories = await db.select().from(subcategories).orderBy(subcategories.name);
+      console.log(`📊 Subcategories loaded: ${allSubcategories.length}`);
+      return allSubcategories;
+    } catch (error) {
+      console.error("Error fetching subcategories:", error);
+      return [];
+    }
+  }
+
+  async getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]> {
+    try {
+      const subcat = await db
+        .select()
+        .from(subcategories)
+        .where(eq(subcategories.categoryId, categoryId))
+        .orderBy(subcategories.name);
+      console.log(`📊 Subcategories for category ${categoryId}: ${subcat.length}`);
+      return subcat;
+    } catch (error) {
+      console.error("Error fetching subcategories by category:", error);
+      return [];
+    }
+  }
+
+  async createSubcategory(subcategoryData: InsertSubcategory): Promise<Subcategory> {
+    try {
+      const [subcategory] = await db.insert(subcategories).values(subcategoryData).returning();
+      console.log("✅ Subcategory created:", subcategory.name);
+      return subcategory;
+    } catch (error) {
+      console.error("Error creating subcategory:", error);
+      throw error;
+    }
+  }
+
+  async updateSubcategory(id: string, updates: Partial<Subcategory>): Promise<Subcategory> {
+    try {
+      const [subcategory] = await db
+        .update(subcategories)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(subcategories.id, id))
+        .returning();
+      
+      if (!subcategory) {
+        throw new Error(`Subcategory with id ${id} not found`);
+      }
+      
+      console.log("✅ Subcategory updated:", subcategory.name);
+      return subcategory;
+    } catch (error) {
+      console.error("Error updating subcategory:", error);
+      throw error;
+    }
+  }
+
+  async deleteSubcategory(id: string): Promise<boolean> {
+    try {
+      // First check if subcategory has custom fields
+      const fieldsCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(customFields)
+        .where(eq(customFields.subcategoryId, id));
+      
+      if (fieldsCount[0]?.count > 0) {
+        throw new Error("Cannot delete subcategory: has associated custom fields");
+      }
+      
+      await db.delete(subcategories).where(eq(subcategories.id, id));
+      console.log("✅ Subcategory deleted:", id);
+      return true;
+    } catch (error) {
+      console.error("Error deleting subcategory:", error);
+      throw error;
     }
   }
 }
