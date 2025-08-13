@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, desc, or, sql, count } from "drizzle-orm";
+import { eq, and, desc, or, sql, count, asc } from "drizzle-orm";
 import { 
   users, tickets, comments, departments, attachments,
   systemRoles, systemPermissions, rolePermissions,
@@ -491,6 +491,24 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error fetching categories:", error);
       // Return empty array if table doesn't exist or other error
+      return [];
+    }
+  }
+
+  async getCategoriesByDepartment(departmentId: string): Promise<any[]> {
+    try {
+      const categoriesResult = await db
+        .select()
+        .from(categories)
+        .where(eq(categories.departmentId, departmentId))
+        .orderBy(asc(categories.name));
+      console.log(`📊 Categories for department ${departmentId}: ${categoriesResult.length} categories found`);
+      if (categoriesResult.length > 0) {
+        console.log(`📝 Sample categories for dept ${departmentId}:`, categoriesResult.map(c => c.name).slice(0, 3));
+      }
+      return categoriesResult;
+    } catch (error) {
+      console.error("Error fetching categories by department:", error);
       return [];
     }
   }

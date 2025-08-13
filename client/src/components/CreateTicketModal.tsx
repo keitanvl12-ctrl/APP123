@@ -54,6 +54,12 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
     enabled: isOpen && !!selectedDepartment,
   });
 
+  // Fallback: load all categories if department-specific fails
+  const { data: allCategories } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+    enabled: isOpen && (!selectedDepartment || !categories),
+  });
+
   // Fetch custom fields for selected category
   const { data: customFields = [] } = useQuery<CustomField[]>({
     queryKey: ["/api/custom-fields/category", selectedCategoryId],
@@ -319,21 +325,17 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                         setSelectedCategoryId(value);
                       }} 
                       value={field.value || ""}
-                      disabled={!selectedDepartment}
+                      disabled={false}
                     >
                       <FormControl>
                         <SelectTrigger className="focus:ring-primary focus:border-primary">
                           <SelectValue 
-                            placeholder={
-                              !selectedDepartment 
-                                ? "Selecione um departamento primeiro" 
-                                : "Selecione a categoria"
-                            } 
+                            placeholder="Selecione a categoria" 
                           />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {categories?.map((category) => (
+                        {(categories || allCategories)?.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>
@@ -341,9 +343,9 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated, ed
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                    {selectedDepartment && categories?.length === 0 && (
+                    {(!categories && !allCategories) && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Nenhuma categoria disponível para este departamento
+                        Carregando categorias...
                       </p>
                     )}
                   </FormItem>
