@@ -1091,14 +1091,22 @@ export default function KanbanBoard() {
                             </p>
                           </div>
 
-                          {/* Category and Tags */}
-                          {(ticket.categoryName || (ticket.tags && ticket.tags.length > 0)) && (
+                          {/* Category, Subcategory and Tags */}
+                          {(ticket.categoryName || ticket.subcategoryName || (ticket.tags && ticket.tags.length > 0)) && (
                             <div className="space-y-2">
                               {ticket.categoryName && (
                                 <div>
                                   <span className="text-xs text-gray-500">Categoria:</span>
                                   <Badge variant="outline" className="ml-2 text-xs">
                                     {ticket.categoryName}
+                                  </Badge>
+                                </div>
+                              )}
+                              {ticket.subcategoryName && (
+                                <div>
+                                  <span className="text-xs text-gray-500">Subcategoria:</span>
+                                  <Badge variant="outline" className="ml-2 text-xs bg-green-50 text-green-700 border-green-200">
+                                    {ticket.subcategoryName}
                                   </Badge>
                                 </div>
                               )}

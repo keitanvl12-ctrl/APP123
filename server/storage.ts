@@ -144,6 +144,8 @@ export class DatabaseStorage implements IStorage {
         priority: tickets.priority,
         categoryId: tickets.categoryId,
         subcategoryId: tickets.subcategoryId,
+        pausedAt: tickets.pausedAt,
+        pauseReason: tickets.pauseReason,
         createdBy: tickets.createdBy,
         assignedTo: tickets.assignedTo,
         createdAt: tickets.createdAt,
@@ -159,9 +161,13 @@ export class DatabaseStorage implements IStorage {
           email: users.email,
           role: users.role,
         },
+        categoryName: categories.name,
+        subcategoryName: subcategories.name,
       })
       .from(tickets)
       .leftJoin(users, eq(tickets.createdBy, users.id))
+      .leftJoin(categories, eq(tickets.categoryId, categories.id))
+      .leftJoin(subcategories, eq(tickets.subcategoryId, subcategories.id))
       .orderBy(desc(tickets.createdAt));
 
     return ticketList;
@@ -242,22 +248,30 @@ export class DatabaseStorage implements IStorage {
         const createdAt = new Date(ticket.createdAt);
         const now = new Date();
         
-        // Para tickets pausados ou resolvidos, não progride
+        // Calculate SLA with pause considerations
         let progressPercent = 0;
-        if (ticket.status === 'resolved' || ticket.status === 'on_hold') {
-          // Manter progresso atual se já existe, senão usar tempo até pausa/resolução
-          if (ticket.slaProgressPercent) {
-            progressPercent = ticket.slaProgressPercent;
-          } else {
-            const endTime = ticket.resolvedAt ? new Date(ticket.resolvedAt) : now;
-            const totalHours = (endTime.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-            progressPercent = Math.min(100, (totalHours / slaHours) * 100);
-          }
+        let effectiveHours = 0;
+        let pausedTime = 0;
+        
+        // Calculate paused time for on_hold tickets
+        if (ticket.status === 'on_hold' && ticket.pausedAt) {
+          const pausedAt = new Date(ticket.pausedAt);
+          // Calculate time before pause
+          effectiveHours = (pausedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+          // Calculate time spent paused (not counting towards SLA)
+          pausedTime = (now.getTime() - pausedAt.getTime()) / (1000 * 60 * 60);
+          console.log(`⏸️ TICKET ${ticket.ticketNumber} pausado há ${pausedTime.toFixed(1)}h - SLA congelado`);
+        } else if (ticket.status === 'resolved' && ticket.resolvedAt) {
+          // For resolved tickets, use time until resolution
+          const resolvedAt = new Date(ticket.resolvedAt);
+          effectiveHours = (resolvedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
         } else {
-          // Para tickets ativos, calcular progresso em tempo real
-          const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-          progressPercent = Math.min(100, (totalHours / slaHours) * 100);
+          // For active tickets, use current time
+          effectiveHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
         }
+        
+        // Calculate progress based on effective time only
+        progressPercent = Math.min(100, (effectiveHours / slaHours) * 100);
         
         // Determine SLA status
         let slaStatus = 'met';
@@ -270,14 +284,18 @@ export class DatabaseStorage implements IStorage {
         // Calculate deadline
         const deadline = new Date(createdAt.getTime() + (slaHours * 60 * 60 * 1000));
         
-        // Calculate remaining time for active tickets
+        // Calculate remaining time - only for active tickets
         let hoursRemaining = 0;
-        if (ticket.status !== 'resolved' && ticket.status !== 'on_hold') {
-          const totalHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-          hoursRemaining = Math.max(0, slaHours - totalHours);
+        if (ticket.status === 'on_hold') {
+          // For paused tickets, remaining time is frozen
+          hoursRemaining = Math.max(0, slaHours - effectiveHours);
+          console.log(`⏸️ TICKET ${ticket.ticketNumber} - Tempo restante congelado: ${hoursRemaining.toFixed(1)}h`);
+        } else if (ticket.status === 'resolved') {
+          // Resolved tickets don't have remaining time
+          hoursRemaining = 0;
         } else {
-          // Para tickets pausados/resolvidos, manter tempo restante no momento da pausa/resolução
-          hoursRemaining = ticket.slaHoursRemaining || 0;
+          // Active tickets calculate remaining time normally
+          hoursRemaining = Math.max(0, slaHours - effectiveHours);
         }
         
         return {
