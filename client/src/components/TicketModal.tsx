@@ -142,33 +142,55 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
       // Função para tentar buscar campos via fallback usando todos os campos
       const tryFallbackFieldMapping = async () => {
         try {
+          console.log("🔄 Iniciando fallback - buscando todos os campos customizados...");
           const response = await fetch('/api/custom-fields', { credentials: 'include' });
           const allFields = await response.json();
-          console.log("📦 Buscando via fallback - todos os campos:", allFields);
+          console.log("📦 Todos os campos encontrados no banco:", allFields);
           
           if (ticket.formData) {
             const formData = typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData;
-            const customFields = formData.customFields || formData.originalRequestBody?.customFields || {};
+            console.log("📋 FormData parseado:", formData);
             
-            const mappedFields = Object.entries(customFields)
+            // Tentar diferentes caminhos para os campos customizados
+            const customFieldsFromMain = formData.customFields || {};
+            const customFieldsFromOriginal = formData.originalRequestBody?.customFields || {};
+            
+            // Combinar ambos os objetos (priorizando customFields principal)
+            const allCustomFields = { ...customFieldsFromOriginal, ...customFieldsFromMain };
+            console.log("🔗 Campos customizados encontrados no ticket:", allCustomFields);
+            
+            if (Object.keys(allCustomFields).length === 0) {
+              console.log("ℹ️ Nenhum campo customizado encontrado no formData");
+              setCustomFields([]);
+              setLoading(false);
+              return;
+            }
+            
+            const mappedFields = Object.entries(allCustomFields)
               .filter(([_, value]) => value && value !== '')
               .map(([fieldId, value]) => {
+                console.log(`🔍 Procurando campo com ID: ${fieldId}`);
                 const field = allFields.find((f: any) => f.id === fieldId);
                 if (field) {
+                  console.log(`✅ Campo encontrado: ${field.name} = ${value}`);
                   return {
                     customField: field,
                     value: String(value)
                   };
                 } else {
-                  console.warn(`⚠️ Campo não encontrado no banco: ${fieldId}, pulando...`);
-                  return null;
+                  console.warn(`⚠️ Campo não encontrado no banco: ${fieldId}, valor: ${value}`);
+                  // Retorna campo com informações básicas mesmo se não encontrado no banco
+                  return {
+                    customField: { id: fieldId, name: `Campo ID: ${fieldId.slice(0, 8)}...` },
+                    value: String(value)
+                  };
                 }
-              })
-              .filter(field => field !== null); // Remove campos não encontrados
+              });
             
             console.log("✅ Campos mapeados via fallback:", mappedFields);
             setCustomFields(mappedFields);
           } else {
+            console.log("ℹ️ Ticket sem formData");
             setCustomFields([]);
           }
         } catch (error) {
@@ -178,50 +200,9 @@ export default function TicketModal({ ticket, children, onUpdate, onEdit, onDele
         setLoading(false);
       };
 
-      // Buscar campos customizados baseados na subcategoria do ticket
-      if (ticket.subcategoryId) {
-        fetch(`/api/custom-fields/subcategory/${ticket.subcategoryId}`, {
-          credentials: 'include'
-        })
-          .then(res => res.json())
-          .then(fields => {
-            console.log("✅ Campos customizados da subcategoria encontrados:", fields);
-            
-            if (fields.length > 0) {
-              // Extrair valores dos campos customizados do formData do ticket
-              try {
-                const formData = ticket.formData ? (typeof ticket.formData === 'string' ? JSON.parse(ticket.formData) : ticket.formData) : {};
-                const customFieldsData = formData.customFields || formData.originalRequestBody?.customFields || {};
-                
-                // Mapear apenas os campos que têm valores preenchidos
-                const fieldsWithValues = fields
-                  .map(field => ({
-                    customField: field,
-                    value: customFieldsData[field.id]
-                  }))
-                  .filter(item => item.value && item.value !== '' && item.value !== null && item.value !== undefined);
-                
-                console.log("✅ Campos mapeados com valores do formData:", fieldsWithValues);
-                setCustomFields(fieldsWithValues);
-                setLoading(false);
-              } catch (error) {
-                console.error("❌ Erro ao processar formData, tentando fallback:", error);
-                tryFallbackFieldMapping();
-              }
-            } else {
-              // Se não encontrou campos na subcategoria, tentar fallback
-              console.log("⚠️ Nenhum campo na subcategoria, tentando fallback");
-              tryFallbackFieldMapping();
-            }
-          })
-          .catch(err => {
-            console.error("❌ Erro ao buscar campos da subcategoria, tentando fallback:", err);
-            tryFallbackFieldMapping();
-          });
-      } else {
-        console.log("ℹ️ Ticket sem subcategoria definida, tentando fallback");
-        tryFallbackFieldMapping();
-      }
+      // SEMPRE usar fallback para garantir que campos orphaned sejam capturados
+      console.log("🔄 Usando estratégia de fallback para todos os tickets");
+      tryFallbackFieldMapping();
 
       // Buscar usuários atribuíveis (não solicitantes)
       fetch('/api/users/assignable', {
