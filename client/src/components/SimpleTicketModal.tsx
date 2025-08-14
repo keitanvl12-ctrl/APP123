@@ -77,9 +77,14 @@ export default function SimpleTicketModal({ isOpen, onClose }: SimpleTicketModal
     queryKey: ['/api/custom-fields/subcategory', selectedSubcategoryId],
     queryFn: async () => {
       if (!selectedSubcategoryId) return [];
-      const response = await fetch(`/api/custom-fields?subcategoryId=${selectedSubcategoryId}`);
+      console.log("🔍 Buscando campos customizados para subcategoria:", selectedSubcategoryId);
+      const response = await fetch(`/api/custom-fields/subcategory/${selectedSubcategoryId}`, {
+        credentials: 'include'
+      });
       if (!response.ok) throw new Error('Erro ao buscar campos customizados');
-      return response.json();
+      const fields = await response.json();
+      console.log("✅ Campos customizados encontrados:", fields);
+      return fields;
     },
     enabled: isOpen && !!selectedSubcategoryId,
   });
