@@ -1,5 +1,7 @@
 import { format, differenceInMinutes, addMinutes } from 'date-fns';
 
+// SLA calculation is now 24/7 - no business hours restrictions
+
 export interface SLACalculationResult {
   responseTime: string;
   resolutionTime: string;

@@ -101,6 +101,21 @@ O sistema de funções e permissões está 100% funcional e operacional:
 **Arquitetura corrigida e funcionando:**
 Departamento → Categoria → **Subcategoria** → Campos Customizados
 
+### ✅ CAMPOS CUSTOMIZADOS CONECTADOS - 14 de agosto de 2025
+**Sistema totalmente implementado e funcional:**
+- CustomFieldsManager conectado ao banco de dados PostgreSQL
+- Campos configurados aparecem automaticamente no formulário de criação
+- URL do endpoint corrigida para `/api/custom-fields/subcategory/{id}`
+- Botão deletar funcionando corretamente
+- Sistema 100% operacional para configuração dinâmica de campos
+
+### ✅ SLA SIMPLIFICADO - 14 de agosto de 2025  
+**Remoção do sistema de escalas e horário comercial:**
+- SLA agora conta tempo corrido 24/7 (sem pausas por horário)
+- Mantido padrão de 4 horas quando não configurado em SLA
+- Removidas referências ao sistema businessHours.ts
+- Cálculo simplificado: tempo total - tempo pausado manualmente
+
 # System Architecture
 
 ## Frontend Architecture
