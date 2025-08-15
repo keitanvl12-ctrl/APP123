@@ -6,6 +6,8 @@ import { Ticket, Hourglass, CheckCircle, Clock, AlertTriangle, TrendingUp, Users
 import StatsCard from "@/components/StatsCard";
 import TicketTrendsChart from "@/components/TicketTrendsChart";
 import PriorityBreakdown from "@/components/PriorityBreakdown";
+import TeamPerformanceChart from "@/components/TeamPerformanceChart";
+import DepartmentStatsChart from "@/components/DepartmentStatsChart";
 
 // Removed RecentTicketsTable as requested
 import { Search, Filter, Calendar } from 'lucide-react';
@@ -313,77 +315,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Team Performance */}
+        {/* Real Data Performance Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Users className="w-5 h-5 text-blue-600" />
-                <span>Performance da Equipe</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {teamMetrics.map((member, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                       onClick={() => navigateToTickets(`user-${member.name}`)}>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">{member.name}</h4>
-                        <Badge variant="outline">{member.efficiency}%</Badge>
-                      </div>
-                      <div className="flex text-sm text-gray-600 space-x-4">
-                        <span>Atribuídos: {member.tickets}</span>
-                        <span>Resolvidos: {member.resolved}</span>
-                      </div>
-                      <Progress value={member.efficiency} className="h-2 mt-2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Team Performance Chart - Connected to Real Data */}
+          <TeamPerformanceChart />
 
-          {/* Department Statistics */}
-          <Card className="border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Activity className="w-5 h-5 text-green-600" />
-                <span>Estatísticas por Departamento</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {departmentStats.map((dept, index) => (
-                  <div key={index} className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                       onClick={() => navigateToTickets(`dept-${dept.name}`)}>
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium text-gray-900">{dept.name}</h4>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={dept.sla >= 90 ? "default" : "destructive"}>
-                          SLA: {dept.sla}%
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-blue-600">{dept.tickets}</div>
-                        <div className="text-gray-600">Total</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-green-600">{dept.resolved}</div>
-                        <div className="text-gray-600">Resolvidos</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-yellow-600">{dept.pending}</div>
-                        <div className="text-gray-600">Pendentes</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Department Statistics Chart - Connected to Real Data */}
+          <DepartmentStatsChart />
         </div>
 
         {/* Recent Tickets Table */}

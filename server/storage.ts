@@ -726,13 +726,7 @@ export class DatabaseStorage implements IStorage {
     return await this.getAllTickets();
   }
 
-  async getTeamPerformance(): Promise<any[]> {
-    return [
-      { name: 'Equipe TI', ticketsResolvidos: 45, tempoMedio: '2.1h', satisfacao: 92 },
-      { name: 'Equipe RH', ticketsResolvidos: 23, tempoMedio: '1.8h', satisfacao: 88 },
-      { name: 'Equipe Financeiro', ticketsResolvidos: 12, tempoMedio: '3.2h', satisfacao: 85 }
-    ];
-  }
+  // Method moved after deleteSubcategory - see line 1380
 
   async getDepartmentStats(): Promise<any[]> {
     return [
@@ -1371,6 +1365,71 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error deleting subcategory:", error);
       throw error;
+    }
+  }
+
+  async getTeamPerformance(): Promise<any[]> {
+    try {
+      const teamData = await db
+        .select({
+          userId: users.id,
+          userName: users.name,
+          departmentName: departments.name,
+          totalTickets: sql<number>`COUNT(${tickets.id})::int`,
+          resolvedTickets: sql<number>`COUNT(CASE WHEN ${tickets.status} = 'resolved' THEN 1 END)::int`,
+          pendingTickets: sql<number>`COUNT(CASE WHEN ${tickets.status} != 'resolved' THEN 1 END)::int`
+        })
+        .from(users)
+        .leftJoin(departments, eq(users.departmentId, departments.id))
+        .leftJoin(tickets, eq(tickets.assignedTo, users.id))
+        .where(inArray(users.role, ['atendente', 'supervisor', 'admin']))
+        .groupBy(users.id, users.name, departments.name)
+        .orderBy(sql`COUNT(${tickets.id}) DESC`);
+
+      return teamData.map(item => ({
+        userId: item.userId,
+        name: item.userName,
+        department: item.departmentName || 'Sem Departamento',
+        resolved: item.resolvedTickets,
+        pending: item.pendingTickets,
+        total: item.totalTickets,
+        efficiency: item.totalTickets > 0 ? Math.round((item.resolvedTickets / item.totalTickets) * 100) : 0
+      }));
+    } catch (error) {
+      console.error('Error fetching team performance:', error);
+      return [];
+    }
+  }
+
+  async getDepartmentStats(): Promise<any[]> {
+    try {
+      const departmentData = await db
+        .select({
+          departmentName: departments.name,
+          totalTickets: sql<number>`COUNT(${tickets.id})::int`,
+          resolvedTickets: sql<number>`COUNT(CASE WHEN ${tickets.status} = 'resolved' THEN 1 END)::int`,
+          pendingTickets: sql<number>`COUNT(CASE WHEN ${tickets.status} != 'resolved' THEN 1 END)::int`,
+          criticalTickets: sql<number>`COUNT(CASE WHEN ${tickets.priority} = 'critical' THEN 1 END)::int`
+        })
+        .from(departments)
+        .leftJoin(tickets, or(
+          eq(tickets.requesterDepartmentId, departments.id),
+          eq(tickets.responsibleDepartmentId, departments.id)
+        ))
+        .groupBy(departments.id, departments.name)
+        .orderBy(sql`COUNT(${tickets.id}) DESC`);
+
+      return departmentData.map(item => ({
+        department: item.departmentName,
+        total: item.totalTickets,
+        resolved: item.resolvedTickets,
+        pending: item.pendingTickets,
+        critical: item.criticalTickets,
+        slaCompliance: item.totalTickets > 0 ? Math.round(((item.totalTickets - item.criticalTickets) / item.totalTickets) * 100) : 100
+      }));
+    } catch (error) {
+      console.error('Error fetching department stats:', error);
+      return [];
     }
   }
 }
